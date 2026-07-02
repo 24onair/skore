@@ -11,7 +11,7 @@ from pathlib import Path
 
 from pathlib import PurePath
 
-from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Response, UploadFile
+from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -23,8 +23,7 @@ from scoring.result import Competitor, score_competition
 from scoring.task import TaskParseError, parse_xctsk
 from scoring.validate import analyze
 
-from . import auth, store
-from . import users as users_store
+from . import auth, profiles, storage, store
 from .serialize import analysis_to_dict, competition_to_dict, task_to_dict, track_to_dict
 
 app = FastAPI(title="패러글라이딩 XC 경기 성적 계산기", version="0.1.0")
@@ -44,65 +43,11 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-# --- auth ------------------------------------------------------------------ #
-def _set_session_cookie(response: Response, user: dict) -> None:
-    token = auth.make_token(user["uid"], user["role"])
-    response.set_cookie(
-        auth.COOKIE_NAME,
-        token,
-        max_age=auth.TOKEN_TTL,
-        httponly=True,
-        samesite="lax",
-        path="/",
-    )
-
-
-@app.post("/api/auth/signup")
-def signup_endpoint(
-    response: Response,
-    email: str = Form(...),
-    password: str = Form(...),
-    display_name: str = Form(...),
-    role: str = Form(...),
-    pilot_name: str = Form(""),
-    bib: str = Form(""),
-    glider: str = Form(""),
-    contact: str = Form(""),
-    glider_class: str = Form(""),
-) -> dict:
-    try:
-        user = users_store.create_user(
-            email, password, display_name, role, pilot_name, bib, glider, contact, glider_class
-        )
-    except users_store.UserError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    _set_session_cookie(response, user)
-    return {"user": users_store.public(user)}
-
-
-@app.post("/api/auth/login")
-def login_endpoint(
-    response: Response,
-    email: str = Form(...),
-    password: str = Form(...),
-) -> dict:
-    user = users_store.verify_login(email, password)
-    if user is None:
-        raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
-    _set_session_cookie(response, user)
-    return {"user": users_store.public(user)}
-
-
-@app.post("/api/auth/logout")
-def logout_endpoint(response: Response) -> dict:
-    response.delete_cookie(auth.COOKIE_NAME, path="/")
-    return {"ok": True}
-
-
+# --- auth (Supabase Auth: signup/login/logout happen on the frontend) ------- #
 @app.get("/api/auth/me")
-def me_endpoint(skore_session: str | None = Cookie(default=None)) -> dict:
-    user = auth.current_user(skore_session)
-    return {"user": users_store.public(user)}
+def me_endpoint(user: dict | None = Depends(auth.current_user)) -> dict:
+    """Return the caller's profile (role + pilot fields) from their Bearer token."""
+    return {"user": profiles.public(user)}
 
 
 @app.patch("/api/me/profile")
@@ -123,8 +68,8 @@ def update_profile_endpoint(
     ):
         if val is not None:
             fields[key] = val
-    updated = users_store.update_user(user["uid"], fields)
-    return {"user": users_store.public(updated)}
+    updated = profiles.update_profile(user["uid"], fields)
+    return {"user": profiles.public(updated)}
 
 
 @app.get("/api/me/results")
@@ -164,7 +109,7 @@ def my_results_endpoint(user: dict = Depends(auth.require_user)) -> dict:
             }
         )
     out.sort(key=lambda r: r["total"], reverse=True)
-    return {"results": out, "profile": users_store.public(user)}
+    return {"results": out, "profile": profiles.public(user)}
 
 
 @app.get("/api/me/memberships")
@@ -251,6 +196,36 @@ async def _parse_task(task: UploadFile):
         raise HTTPException(status_code=422, detail=f"Task parse error: {exc}") from exc
 
 
+def _score_from_urls(igc_urls: list[str], task_obj, params: ScoringParams, num_present: int) -> dict:
+    """Fetch each IGC from its Supabase Storage signed URL and score the field."""
+    competitors: list[Competitor] = []
+    errors: list[dict] = []
+    tz_offset, tz_label = 0, "UTC"
+    for url in igc_urls:
+        stem = PurePath(url.split("?")[0]).stem or "track"
+        try:
+            text = storage.fetch(url).decode("latin-1")
+            track = parse_igc(text)
+            analysis = analyze(track, task_obj)
+        except Exception as exc:  # one bad file shouldn't kill the batch
+            errors.append({"file": stem, "error": str(exc)})
+            continue
+        if not competitors:
+            tz_offset, tz_label = resolve_offset(track, task_obj)
+        bib = (track.raw_headers.get("FCID") or "").strip() or None
+        competitors.append(
+            Competitor(pilot_id=stem, name=track.pilot_name or stem, analysis=analysis,
+                       bib=bib, glider=track.glider)
+        )
+    if not competitors:
+        raise HTTPException(status_code=422, detail="채점할 수 있는 IGC 트랙이 없습니다.")
+    result = score_competition(competitors, params, num_present=num_present or None)
+    payload = competition_to_dict(result)
+    payload["errors"] = errors
+    payload["meta"] = {"utc_offset": tz_offset, "tz_label": tz_label}
+    return payload
+
+
 @app.post("/api/score")
 async def score_endpoint(
     igcs: list[UploadFile] = File(..., description="Pilot IGC tracklogs"),
@@ -329,11 +304,10 @@ async def create_league_endpoint(
 @app.get("/api/leagues")
 def list_leagues_endpoint(
     mine: int = 0,
-    skore_session: str | None = Cookie(default=None),
+    user: dict | None = Depends(auth.current_user),
 ) -> dict:
     """List leagues. With ``?mine=1`` returns only the caller's owned leagues
     (organizer dashboard). Each summary carries an ``owned`` flag for the UI."""
-    user = auth.current_user(skore_session)
     uid = user["uid"] if user else None
     leagues = store.list_leagues()
     for lg in leagues:
@@ -346,10 +320,9 @@ def list_leagues_endpoint(
 @app.get("/api/leagues/{league_id}")
 def get_league_endpoint(
     league_id: str,
-    skore_session: str | None = Cookie(default=None),
+    user: dict | None = Depends(auth.current_user),
 ) -> dict:
     league = _require_league(league_id)
-    user = auth.current_user(skore_session)
     # Roster is readable by anyone, but ``contact`` is private — only the owner's
     # registrations endpoint exposes it. Strip it here, and hide pending/rejected
     # self-registrations from this public view (they belong on the roster page).
@@ -381,8 +354,7 @@ def claim_league_endpoint(
     league = _require_league(league_id)
     if league.get("owner_id") is not None:
         raise HTTPException(status_code=403, detail="이미 소유자가 있는 리그입니다.")
-    league["owner_id"] = user["uid"]
-    store._save(league)
+    store.set_league_owner(league_id, user["uid"])
     return {"claimed": league_id, "owner_id": user["uid"]}
 
 
@@ -454,24 +426,30 @@ def delete_meet_endpoint(
 
 # --- tasks (일차 타스크) ---------------------------------------------------- #
 @app.post("/api/leagues/{league_id}/meets/{meet_id}/tasks")
-async def add_task_endpoint(
+def add_task_endpoint(
     league_id: str,
     meet_id: str,
-    igcs: list[UploadFile] = File(...),
-    task: UploadFile = File(...),
-    task_name: str = Form(""),
-    num_present: int = Form(0),
+    payload: dict = Body(...),
     user: dict = Depends(auth.require_organizer),
 ) -> dict:
+    """Score a task. The browser uploads the IGCs to Supabase Storage and sends their
+    signed URLs (``igc_urls``) plus the ``.xctsk`` text inline (``task_xctsk``)."""
     league = auth.require_owner(league_id, user)
     meet = store.get_meet(league, meet_id)
     if meet is None:
         raise HTTPException(status_code=404, detail="Meet not found")
-    task_obj = await _parse_task(task)
+    igc_urls = payload.get("igc_urls") or []
+    task_text = payload.get("task_xctsk") or ""
+    if not igc_urls or not task_text:
+        raise HTTPException(status_code=422, detail="IGC 트랙과 과제(.xctsk)가 필요합니다.")
+    try:
+        task_obj = parse_xctsk(task_text)
+    except TaskParseError as exc:
+        raise HTTPException(status_code=422, detail=f"Task parse error: {exc}") from exc
     params = _params_from_dict(meet.get("params", {}))
-    result = await _score_batch(igcs, task_obj, params, num_present)
+    result = _score_from_urls(igc_urls, task_obj, params, int(payload.get("num_present") or 0))
     result["task"] = task_to_dict(task_obj)
-    saved = store.add_task(league_id, meet_id, task_name, result)
+    saved = store.add_task(league_id, meet_id, payload.get("task_name", ""), result)
     return {"task": saved}
 
 
@@ -556,25 +534,26 @@ def delete_pilot_endpoint(
 
 
 @app.post("/api/leagues/{league_id}/roster/import")
-async def import_roster_endpoint(
+def import_roster_endpoint(
     league_id: str,
-    igcs: list[UploadFile] = File(..., description="IGC files to extract pilots from"),
+    payload: dict = Body(...),
     user: dict = Depends(auth.require_organizer),
 ) -> dict:
     """Build/extend the league roster from IGC headers (bib=HFCID, name=HFPLT, glider).
 
-    No scoring — a fast way to seed a roster from a tracker dump. Existing pilots
-    (same bib, or same normalized name) are skipped.
+    No scoring — a fast way to seed a roster from a tracker dump. The browser uploads
+    IGCs to Storage and sends their signed URLs (``igc_urls``). Existing pilots (same
+    bib, or same normalized name) are skipped.
     """
     auth.require_owner(league_id, user)
     pilots: list[dict] = []
     errors: list[dict] = []
-    for f in igcs:
-        text = (await f.read()).decode("latin-1")
+    for url in payload.get("igc_urls") or []:
+        stem = PurePath(url.split("?")[0]).stem or "track"
         try:
-            track = parse_igc(text)
-        except IGCParseError as exc:
-            errors.append({"file": f.filename, "error": str(exc)})
+            track = parse_igc(storage.fetch(url).decode("latin-1"))
+        except Exception as exc:
+            errors.append({"file": stem, "error": str(exc)})
             continue
         pilots.append(
             {
@@ -614,7 +593,7 @@ def _registration_view(pl: dict) -> dict:
     """Enrich a roster entry with the linked account's email for the owner view."""
     email = None
     if pl.get("uid"):
-        acct = users_store.get_user(pl["uid"])
+        acct = profiles.get_profile(pl["uid"])
         email = acct.get("email") if acct else None
     return {**pl, "account_email": email}
 

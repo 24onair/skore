@@ -1,131 +1,185 @@
-"""File-based league store (3-tier: league → meet → task).
+"""League store — Postgres (Supabase) backed (3-tier: league → meet → task).
 
 A **league** (리그/시즌) accumulates **meets** (차전), each of which accumulates
-**tasks** (일차 타스크). Each task is scored once with its meet's scoring
-parameters and the per-pilot result is persisted.
+**tasks** (일차 타스크). Each task is scored once and the per-pilot result is
+persisted as a JSONB snapshot.
 
   * meet standings  = sum of a pilot's task totals within that meet
   * league standings = sum of a pilot's meet totals across the whole season
 
-The **roster** (registered pilots: bib/name/glider/aliases) lives at the *league*
-level — identity is shared across the season, so the same person is consolidated
-across every meet and task regardless of how each instrument spelled their name.
-
-Identity is resolved against the roster **at read time**: task results store the
-raw bib/name/glider read from each IGC, and standings resolve them on read, so
-editing the roster (adding a pilot, fixing a typo, adding an alias) retroactively
+The **roster** lives at the *league* level; identity is resolved against it **at
+read time** (bib → normalized name → aliases), so editing the roster retroactively
 consolidates results across the season without rescoring.
 
-Storage: one JSON file per league under ``data/leagues/``. A database can replace
-this later without touching the API surface.
+Persistence is normalized Postgres tables (``leagues``/``meets``/``tasks``/
+``roster``); the read side assembles a plain league **dict** and the pure scoring
+functions below operate on that dict exactly as before (unchanged, verified).
 """
 
 from __future__ import annotations
 
-import json
-import uuid
 from datetime import datetime
-from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "leagues"
-
-
-def _ensure_dir() -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+from .db import Jsonb, connect
 
 
-def _path(league_id: str) -> Path:
-    return DATA_DIR / f"{league_id}.json"
+# --------------------------------------------------------------------------- #
+# helpers
+# --------------------------------------------------------------------------- #
+def _iso(dt) -> str | None:
+    return dt.isoformat(timespec="seconds") if isinstance(dt, datetime) else dt
 
 
-def _now() -> str:
-    return datetime.now().isoformat(timespec="seconds")
-
-
-def _id() -> str:
-    return uuid.uuid4().hex[:8]
+def _sid(v) -> str | None:
+    return str(v) if v is not None else None
 
 
 # --------------------------------------------------------------------------- #
 # League CRUD
 # --------------------------------------------------------------------------- #
 def create_league(name: str, params: dict, owner_id: str | None = None) -> dict:
-    _ensure_dir()
-    league = {
-        "id": _id(),
-        "name": name or "Untitled league",
-        "created": _now(),
-        "owner_id": owner_id,      # uid of the organizer who owns this league
-        "params": params,          # default scoring params; seeds each new meet
-        "roster": [],
-        "meets": [],
-    }
-    _save(league)
-    return league
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            "insert into leagues (name, params, owner_id) values (%s, %s, %s::uuid) returning id",
+            (name or "Untitled league", Jsonb(params or {}), owner_id),
+        )
+        new_id = cur.fetchone()["id"]
+    return get_league(str(new_id))
 
 
 def list_leagues() -> list[dict]:
-    _ensure_dir()
-    out = []
-    for fp in sorted(DATA_DIR.glob("*.json")):
-        try:
-            lg = json.loads(fp.read_text(encoding="utf-8"))
-        except (ValueError, OSError):
-            continue
-        out.append(
-            {
-                "id": lg["id"],
-                "name": lg["name"],
-                "created": lg.get("created"),
-                "owner_id": lg.get("owner_id"),
-                "meet_count": len(lg.get("meets", [])),
-                "roster_size": len(lg.get("roster", [])),
-            }
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            select l.id, l.name, l.created, l.owner_id,
+                   (select count(*) from meets  m where m.league_id = l.id) as meet_count,
+                   (select count(*) from roster r where r.league_id = l.id) as roster_size
+            from leagues l
+            order by l.created desc
+            """
         )
-    out.sort(key=lambda c: c.get("created") or "", reverse=True)
-    return out
+        rows = cur.fetchall()
+    return [
+        {
+            "id": str(r["id"]),
+            "name": r["name"],
+            "created": _iso(r["created"]),
+            "owner_id": _sid(r["owner_id"]),
+            "meet_count": r["meet_count"],
+            "roster_size": r["roster_size"],
+        }
+        for r in rows
+    ]
 
 
 def get_league(league_id: str) -> dict | None:
-    fp = _path(league_id)
-    if not fp.is_file():
-        return None
-    try:
-        return json.loads(fp.read_text(encoding="utf-8"))
-    except (ValueError, OSError):
-        return None
+    """Assemble the full league dict (params + roster + meets + tasks) that the pure
+    standings functions expect. Returns None if the league doesn't exist."""
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            "select id, owner_id, name, params, created from leagues where id = %s::uuid",
+            (league_id,),
+        )
+        lg = cur.fetchone()
+        if lg is None:
+            return None
+        cur.execute(
+            "select id, name, params, created from meets where league_id = %s::uuid order by ord, created",
+            (league_id,),
+        )
+        meets = cur.fetchall()
+        cur.execute(
+            """
+            select t.id, t.meet_id, t.name, t.result, t.created
+            from tasks t join meets m on m.id = t.meet_id
+            where m.league_id = %s::uuid
+            order by t.ord, t.created
+            """,
+            (league_id,),
+        )
+        tasks = cur.fetchall()
+        cur.execute(
+            """
+            select id, uid, bib, name, glider, glider_class, aliases, contact, source, status
+            from roster where league_id = %s::uuid order by created
+            """,
+            (league_id,),
+        )
+        roster = cur.fetchall()
+
+    tasks_by_meet: dict[str, list] = {}
+    for t in tasks:
+        tasks_by_meet.setdefault(str(t["meet_id"]), []).append(
+            {"id": str(t["id"]), "name": t["name"], "created": _iso(t["created"]), "result": t["result"] or {}}
+        )
+    return {
+        "id": str(lg["id"]),
+        "name": lg["name"],
+        "created": _iso(lg["created"]),
+        "owner_id": _sid(lg["owner_id"]),
+        "params": lg["params"] or {},
+        "roster": [
+            {
+                "pid": str(pl["id"]),
+                "uid": _sid(pl["uid"]),
+                "bib": pl["bib"],
+                "name": pl["name"],
+                "glider": pl["glider"],
+                "glider_class": pl["glider_class"],
+                "aliases": pl["aliases"] or [],
+                "contact": pl["contact"],
+                "source": pl["source"],
+                "status": pl["status"],
+            }
+            for pl in roster
+        ],
+        "meets": [
+            {
+                "id": str(m["id"]),
+                "name": m["name"],
+                "created": _iso(m["created"]),
+                "params": m["params"] or {},
+                "tasks": tasks_by_meet.get(str(m["id"]), []),
+            }
+            for m in meets
+        ],
+    }
 
 
 def delete_league(league_id: str) -> bool:
-    fp = _path(league_id)
-    if not fp.is_file():
-        return False
-    fp.unlink()
-    return True
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute("delete from leagues where id = %s::uuid", (league_id,))
+        return cur.rowcount > 0
 
 
-def _save(league: dict) -> None:
-    _ensure_dir()
-    _path(league["id"]).write_text(json.dumps(league, ensure_ascii=False, indent=2), encoding="utf-8")
+def set_league_owner(league_id: str, owner_id: str) -> bool:
+    """Claim an ownerless league (used by POST /claim)."""
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            "update leagues set owner_id = %s::uuid where id = %s::uuid", (owner_id, league_id)
+        )
+        return cur.rowcount > 0
 
 
 # --------------------------------------------------------------------------- #
 # Meets (차전)
 # --------------------------------------------------------------------------- #
 def add_meet(league_id: str, name: str, params: dict | None) -> dict | None:
-    league = get_league(league_id)
-    if league is None:
-        return None
-    meet = {
-        "id": _id(),
-        "name": name or f"{len(league['meets']) + 1}차전",
-        "created": _now(),
-        "params": params or dict(league.get("params", {})),
-        "tasks": [],
-    }
-    league["meets"].append(meet)
-    _save(league)
-    return meet
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute("select params from leagues where id = %s::uuid", (league_id,))
+        lg = cur.fetchone()
+        if lg is None:
+            return None
+        cur.execute("select count(*) as n from meets where league_id = %s::uuid", (league_id,))
+        n = cur.fetchone()["n"]
+        cur.execute(
+            "insert into meets (league_id, name, params, ord) values (%s::uuid, %s, %s, %s) "
+            "returning id, name, params, created",
+            (league_id, name or f"{n + 1}차전", Jsonb(params or dict(lg["params"] or {})), n),
+        )
+        m = cur.fetchone()
+    return {"id": str(m["id"]), "name": m["name"], "created": _iso(m["created"]),
+            "params": m["params"] or {}, "tasks": []}
 
 
 def get_meet(league: dict, meet_id: str) -> dict | None:
@@ -133,36 +187,32 @@ def get_meet(league: dict, meet_id: str) -> dict | None:
 
 
 def delete_meet(league_id: str, meet_id: str) -> bool:
-    league = get_league(league_id)
-    if league is None:
-        return False
-    before = len(league["meets"])
-    league["meets"] = [m for m in league["meets"] if m["id"] != meet_id]
-    if len(league["meets"]) == before:
-        return False
-    _save(league)
-    return True
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            "delete from meets where id = %s::uuid and league_id = %s::uuid", (meet_id, league_id)
+        )
+        return cur.rowcount > 0
 
 
 # --------------------------------------------------------------------------- #
 # Tasks (일차 타스크)
 # --------------------------------------------------------------------------- #
 def add_task(league_id: str, meet_id: str, task_name: str, result: dict) -> dict | None:
-    league = get_league(league_id)
-    if league is None:
-        return None
-    meet = get_meet(league, meet_id)
-    if meet is None:
-        return None
-    task = {
-        "id": _id(),
-        "name": task_name or f"{len(meet['tasks']) + 1}일차",
-        "created": _now(),
-        "result": result,
-    }
-    meet["tasks"].append(task)
-    _save(league)
-    return task
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            "select 1 from meets where id = %s::uuid and league_id = %s::uuid", (meet_id, league_id)
+        )
+        if cur.fetchone() is None:
+            return None
+        cur.execute("select count(*) as n from tasks where meet_id = %s::uuid", (meet_id,))
+        n = cur.fetchone()["n"]
+        cur.execute(
+            "insert into tasks (meet_id, name, result, ord) values (%s::uuid, %s, %s, %s) "
+            "returning id, name, result, created",
+            (meet_id, task_name or f"{n + 1}일차", Jsonb(result), n),
+        )
+        t = cur.fetchone()
+    return {"id": str(t["id"]), "name": t["name"], "created": _iso(t["created"]), "result": t["result"] or {}}
 
 
 def get_task(league: dict, meet_id: str, task_id: str) -> dict | None:
@@ -173,26 +223,42 @@ def get_task(league: dict, meet_id: str, task_id: str) -> dict | None:
 
 
 def delete_task(league_id: str, meet_id: str, task_id: str) -> bool:
-    league = get_league(league_id)
-    if league is None:
-        return False
-    meet = get_meet(league, meet_id)
-    if meet is None:
-        return False
-    before = len(meet["tasks"])
-    meet["tasks"] = [t for t in meet["tasks"] if t["id"] != task_id]
-    if len(meet["tasks"]) == before:
-        return False
-    _save(league)
-    return True
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            delete from tasks t using meets m
+            where t.id = %s::uuid and t.meet_id = m.id
+              and m.id = %s::uuid and m.league_id = %s::uuid
+            """,
+            (task_id, meet_id, league_id),
+        )
+        return cur.rowcount > 0
 
 
 # --------------------------------------------------------------------------- #
-# Roster (league-level: bib / name / glider / aliases)
+# Roster (league-level: bib / name / glider / class / aliases)
 # --------------------------------------------------------------------------- #
 def _norm(s: str | None) -> str:
     """Normalize a name for matching: drop all whitespace, casefold."""
     return "".join((s or "").split()).casefold()
+
+
+def _row_to_pilot(r: dict) -> dict:
+    return {
+        "pid": str(r["id"]),
+        "uid": _sid(r["uid"]),
+        "bib": r["bib"],
+        "name": r["name"],
+        "glider": r["glider"],
+        "glider_class": r["glider_class"],
+        "aliases": r["aliases"] or [],
+        "contact": r["contact"],
+        "source": r["source"],
+        "status": r["status"],
+    }
+
+
+_ROSTER_COLS = "id, uid, bib, name, glider, glider_class, aliases, contact, source, status"
 
 
 def add_pilot(
@@ -208,24 +274,97 @@ def add_pilot(
     source: str = "organizer",
     status: str = "approved",
 ) -> dict | None:
+    alias_list = [a.strip() for a in (aliases or []) if a.strip()]
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute("select 1 from leagues where id = %s::uuid", (league_id,))
+        if cur.fetchone() is None:
+            return None
+        cur.execute(
+            f"""
+            insert into roster (league_id, uid, bib, name, glider, glider_class, aliases, contact, source, status)
+            values (%s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, %s, %s)
+            returning {_ROSTER_COLS}
+            """,
+            (league_id, uid, (bib or "").strip(), (name or "").strip(), (glider or "").strip(),
+             (glider_class or "").strip(), Jsonb(alias_list), (contact or "").strip(), source, status),
+        )
+        return _row_to_pilot(cur.fetchone())
+
+
+def update_pilot(league_id: str, pid: str, fields: dict) -> dict | None:
+    sets, vals = [], []
+    for k in ("bib", "name", "glider", "glider_class", "contact"):
+        if k in fields:
+            sets.append(f"{k} = %s")
+            vals.append((fields[k] or "").strip())
+    if "aliases" in fields:
+        sets.append("aliases = %s")
+        vals.append(Jsonb([a.strip() for a in (fields["aliases"] or []) if a.strip()]))
+    if not sets:
+        return _get_pilot(league_id, pid)
+    vals += [pid, league_id]
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            f"update roster set {', '.join(sets)} where id = %s::uuid and league_id = %s::uuid "
+            f"returning {_ROSTER_COLS}",
+            vals,
+        )
+        row = cur.fetchone()
+    return _row_to_pilot(row) if row else None
+
+
+def _get_pilot(league_id: str, pid: str) -> dict | None:
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            f"select {_ROSTER_COLS} from roster where id = %s::uuid and league_id = %s::uuid",
+            (pid, league_id),
+        )
+        row = cur.fetchone()
+    return _row_to_pilot(row) if row else None
+
+
+def delete_pilot(league_id: str, pid: str) -> bool:
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            "delete from roster where id = %s::uuid and league_id = %s::uuid", (pid, league_id)
+        )
+        return cur.rowcount > 0
+
+
+def import_pilots(league_id: str, pilots: list[dict]) -> dict | None:
+    """Bulk-add pilots (from IGC headers), de-duplicating against the existing roster
+    by bib then by normalized name. Returns counts."""
     league = get_league(league_id)
     if league is None:
         return None
-    pilot = {
-        "pid": _id(),
-        "bib": (bib or "").strip(),
-        "name": (name or "").strip(),
-        "glider": (glider or "").strip(),
-        "glider_class": (glider_class or "").strip(),   # EN class: CCC/D/C/B/A ("" = 미지정)
-        "aliases": [a.strip() for a in (aliases or []) if a.strip()],
-        "uid": uid,                    # linked participant account (None = organizer/igc)
-        "contact": (contact or "").strip(),
-        "source": source,             # organizer | igc | self
-        "status": status,             # approved | pending | rejected
-    }
-    league.setdefault("roster", []).append(pilot)
-    _save(league)
-    return pilot
+    bib_idx, name_idx = _index(league)
+    seen_names = set(name_idx)
+    seen_bibs = set(bib_idx)
+    added = 0
+    with connect() as conn, conn.cursor() as cur:
+        for p in pilots:
+            bib = (p.get("bib") or "").strip()
+            name = (p.get("name") or "").strip()
+            glider = (p.get("glider") or "").strip()
+            if bib and bib in seen_bibs:
+                continue
+            if name and _norm(name) in seen_names:
+                continue
+            cur.execute(
+                """
+                insert into roster (league_id, bib, name, glider, source, status)
+                values (%s::uuid, %s, %s, %s, 'igc', 'approved')
+                """,
+                (league_id, bib, name, glider),
+            )
+            if bib:
+                seen_bibs.add(bib)
+            if name:
+                seen_names.add(_norm(name))
+            added += 1
+        cur.execute("select count(*) as n from roster where league_id = %s::uuid", (league_id,))
+        size = cur.fetchone()["n"]
+    return {"added": added, "roster_size": size}
 
 
 # --------------------------------------------------------------------------- #
@@ -241,14 +380,16 @@ def request_membership(
     league_id: str, uid: str, name: str, bib: str, glider: str, contact: str,
     glider_class: str = "",
 ) -> dict | None:
-    """Create a *pending* self-registration for a participant. Returns the new
-    roster entry, or ``None`` if the league is missing / the user already has an
-    entry in this league (duplicate request)."""
-    league = get_league(league_id)
-    if league is None:
-        return None
-    for pl in league.get("roster", []):
-        if pl.get("uid") == uid:
+    """Create a *pending* self-registration. Returns the new roster entry, or None if
+    the league is missing / the user already has an entry in this league."""
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute("select 1 from leagues where id = %s::uuid", (league_id,))
+        if cur.fetchone() is None:
+            return None
+        cur.execute(
+            "select 1 from roster where league_id = %s::uuid and uid = %s::uuid", (league_id, uid)
+        )
+        if cur.fetchone() is not None:
             return None  # already registered / requested
     return add_pilot(
         league_id, bib, name, glider, aliases=None,
@@ -257,101 +398,40 @@ def request_membership(
 
 
 def set_pilot_status(league_id: str, pid: str, status: str) -> dict | None:
-    league = get_league(league_id)
-    if league is None:
-        return None
-    for pl in league.get("roster", []):
-        if pl["pid"] == pid:
-            pl["status"] = status
-            _save(league)
-            return pl
-    return None
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            f"update roster set status = %s where id = %s::uuid and league_id = %s::uuid "
+            f"returning {_ROSTER_COLS}",
+            (status, pid, league_id),
+        )
+        row = cur.fetchone()
+    return _row_to_pilot(row) if row else None
 
 
 def memberships_for_user(uid: str) -> list[dict]:
-    """Every league this participant has requested/joined, with status.
-    Used by the participant dashboard to show join state per league."""
-    _ensure_dir()
-    out: list[dict] = []
-    for fp in sorted(DATA_DIR.glob("*.json")):
-        try:
-            lg = json.loads(fp.read_text(encoding="utf-8"))
-        except (ValueError, OSError):
-            continue
-        for pl in lg.get("roster", []):
-            if pl.get("uid") == uid:
-                out.append(
-                    {
-                        "league_id": lg["id"],
-                        "league_name": lg["name"],
-                        "status": pl.get("status", "approved"),
-                        "pid": pl["pid"],
-                    }
-                )
-                break
-    return out
+    """Every league this participant has requested/joined, with status (for the
+    participant dashboard)."""
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            select r.league_id, l.name as league_name, r.status, r.id as pid
+            from roster r join leagues l on l.id = r.league_id
+            where r.uid = %s::uuid
+            order by l.created desc
+            """,
+            (uid,),
+        )
+        rows = cur.fetchall()
+    return [
+        {"league_id": str(r["league_id"]), "league_name": r["league_name"],
+         "status": r["status"], "pid": str(r["pid"])}
+        for r in rows
+    ]
 
 
-def update_pilot(league_id: str, pid: str, fields: dict) -> dict | None:
-    league = get_league(league_id)
-    if league is None:
-        return None
-    for pl in league.get("roster", []):
-        if pl["pid"] == pid:
-            for k in ("bib", "name", "glider", "glider_class", "contact"):
-                if k in fields:
-                    pl[k] = (fields[k] or "").strip()
-            if "aliases" in fields:
-                pl["aliases"] = [a.strip() for a in (fields["aliases"] or []) if a.strip()]
-            _save(league)
-            return pl
-    return None
-
-
-def delete_pilot(league_id: str, pid: str) -> bool:
-    league = get_league(league_id)
-    if league is None:
-        return False
-    roster = league.get("roster", [])
-    before = len(roster)
-    league["roster"] = [pl for pl in roster if pl["pid"] != pid]
-    if len(league["roster"]) == before:
-        return False
-    _save(league)
-    return True
-
-
-def import_pilots(league_id: str, pilots: list[dict]) -> dict | None:
-    """Bulk-add pilots (e.g. extracted from IGC headers), de-duplicating against
-    the existing roster by bib, then by normalized name. Returns counts."""
-    league = get_league(league_id)
-    if league is None:
-        return None
-    roster = league.setdefault("roster", [])
-    bib_idx, name_idx = _index(league)
-    added = 0
-    for p in pilots:
-        bib = (p.get("bib") or "").strip()
-        name = (p.get("name") or "").strip()
-        glider = (p.get("glider") or "").strip()
-        if bib and bib in bib_idx:
-            continue
-        if name and _norm(name) in name_idx:
-            continue
-        new = {
-            "pid": _id(), "bib": bib, "name": name, "glider": glider, "glider_class": "",
-            "aliases": [], "uid": None, "contact": "", "source": "igc", "status": "approved",
-        }
-        roster.append(new)
-        if bib:
-            bib_idx[bib] = new["pid"]
-        if name:
-            name_idx[_norm(name)] = new["pid"]
-        added += 1
-    _save(league)
-    return {"added": added, "roster_size": len(roster)}
-
-
+# --------------------------------------------------------------------------- #
+# Identity resolution + standings  (PURE — operate on the assembled dict)
+# --------------------------------------------------------------------------- #
 def _index(league: dict) -> tuple[dict[str, str], dict[str, str]]:
     """Build (bib -> pid, normalized-name -> pid) lookup tables from the roster.
 
@@ -412,9 +492,6 @@ def _rank(standings: list[dict]) -> list[dict]:
     return standings
 
 
-# --------------------------------------------------------------------------- #
-# Standings
-# --------------------------------------------------------------------------- #
 def _meet_totals(meet: dict, bib_idx, name_idx, roster) -> dict[str, dict]:
     """Per-pilot totals within one meet, keyed by identity. ``per_task`` maps each
     task id to that pilot's points (best score if a pilot somehow appears twice)."""
@@ -453,7 +530,6 @@ def league_standings(league: dict) -> list[dict]:
             )
             a["per_meet"][mid] = p["total"]
             a["total"] = round(sum(a["per_meet"].values()), 1)
-            # a later meet may resolve to a registered identity the first didn't
             a["registered"] = a["registered"] or p["registered"]
     return _rank(list(agg.values()))
 
