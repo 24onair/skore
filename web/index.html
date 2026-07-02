@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SKORE — 단일 트랙 분석</title>
+  <link rel="icon" type="image/svg+xml" href="/SKORE-appicon.svg" />
+  <link rel="apple-touch-icon" href="/SKORE-appicon.svg" />
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <aside id="panel">
+    <a href="/" class="brand" style="margin-bottom:2px">
+      <svg viewBox="0 0 32 32" width="24" height="24" fill="none" aria-hidden="true">
+        <path d="M16 27.33C5.33 27.33 5.33 17.33 16 17.33C24.67 17.33 24.67 9.33 16 9.33C10 9.33 10 4.67 16 4.67"
+              stroke="#3D9DFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="16" cy="4.67" r="2.33" fill="#F4B740"/>
+      </svg>
+      <span class="wm">SK<b>O</b>RE</span>
+    </a>
+    <nav class="nav">
+      <a href="/index.html" class="active">단일 분석</a>
+      <a href="/comp.html">리그 채점</a>
+    </nav>
+    <div class="panel-auth" id="authbar"></div>
+    <h1>단일 트랙 분석<br /><small>IGC × 과제 · 달성·거리·속도</small></h1>
+
+    <form id="form">
+      <label class="field">
+        <span>IGC 트랙로그</span>
+        <input type="file" id="igc" accept=".igc,.IGC" required />
+      </label>
+      <label class="field">
+        <span>과제 파일 (.xctsk)</span>
+        <input type="file" id="task" accept=".xctsk,.json" required />
+      </label>
+      <button type="submit" id="go">분석하기</button>
+    </form>
+
+    <div id="status" class="muted">IGC와 XCTrack 과제(.xctsk)를 올리면 과제 달성 여부·비행거리·속도를 계산합니다.</div>
+
+    <section id="results" hidden>
+      <div id="verdict"></div>
+      <dl id="metrics"></dl>
+      <h2>경유 기록</h2>
+      <ul id="tags"></ul>
+    </section>
+
+    <footer class="muted">
+      WGS84 · FAI S7F / GAP 기반 · 대회 채점은 <a href="/comp.html" style="color:var(--accent)">리그 채점</a>에서
+    </footer>
+  </aside>
+
+  <div id="map"></div>
+  <script src="/auth.js"></script>
+  <script>SKORE.renderAuthNav(document.getElementById("authbar"), { style: "panel" });</script>
+  <script src="/app.js"></script>
+</body>
+</html>

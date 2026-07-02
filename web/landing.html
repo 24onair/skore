@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SKORE — 패러글라이딩 대회 채점 플랫폼</title>
+  <link rel="icon" type="image/svg+xml" href="/SKORE-appicon.svg" />
+  <link rel="apple-touch-icon" href="/SKORE-appicon.svg" />
+  <meta name="description" content="대회 개설부터 순위 확정까지, 단 하나의 플랫폼. GAP 방식 자동 채점, IGC 트랙 업로드, 차전·리그 누적 순위." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="landing">
+
+  <!-- top nav -->
+  <nav class="lp-nav">
+    <a href="/" class="brand">
+      <svg viewBox="0 0 32 32" width="26" height="26" fill="none" aria-hidden="true">
+        <path d="M16 27.33C5.33 27.33 5.33 17.33 16 17.33C24.67 17.33 24.67 9.33 16 9.33C10 9.33 10 4.67 16 4.67"
+              stroke="#3D9DFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="16" cy="4.67" r="2.33" fill="#F4B740"/>
+      </svg>
+      <span class="wm">SK<b>O</b>RE</span>
+    </a>
+    <a href="#features" class="link">기능</a>
+    <a href="/index.html" class="link">단일 분석</a>
+    <a href="/comp.html" class="link">리그 채점</a>
+    <div class="authbar" id="authbar"></div>
+  </nav>
+
+  <!-- hero -->
+  <header class="hero">
+    <svg class="hero-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <path d="M16 27.33C5.33 27.33 5.33 17.33 16 17.33C24.67 17.33 24.67 9.33 16 9.33C10 9.33 10 4.67 16 4.67"
+            stroke="#3D9DFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="16" cy="4.67" r="2.33" fill="#F4B740"/>
+    </svg>
+    <div class="eyebrow">Paragliding Competition Platform</div>
+    <h1>대회 개설부터 순위 확정까지,<br /><span class="accent">단 하나의 플랫폼.</span></h1>
+    <p class="sub">GAP 방식 자동 채점, IGC 트랙 업로드, 차전·리그 누적 순위 — 패러글라이딩 대회 운영의 모든 것.</p>
+    <div class="cta">
+      <a href="/signup.html" id="cta-primary" class="btn primary">대회 만들기</a>
+      <a href="/login.html" id="cta-secondary" class="btn secondary">내 순위 확인</a>
+    </div>
+  </header>
+
+  <!-- ranking preview -->
+  <section class="lp">
+    <div class="preview-wrap">
+      <div class="ph"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="muted" style="font-size:12px;margin-left:6px">대회 종합 순위 · 5차전 2라운드</span></div>
+      <div class="pb tablewrap">
+        <table class="rank">
+          <thead><tr><th>순위</th><th class="bib">배번</th><th class="l">선수 / 기체</th><th>1차전</th><th>2차전</th><th>종합</th></tr></thead>
+          <tbody>
+            <tr class="rank1"><td class="rk">1</td><td class="bib">001</td><td class="l">송대진 <span class="muted">· 머루</span></td><td class="num">873.5</td><td class="num">—</td><td class="tot">873.5</td></tr>
+            <tr><td class="rk">2</td><td class="bib">007</td><td class="l">박진택 <span class="muted">· 라이트</span></td><td class="num">356.5</td><td class="num">—</td><td class="tot">356.5</td></tr>
+            <tr><td class="rk">3</td><td class="bib">214</td><td class="l">손성훈 <span class="muted">· GTO3</span></td><td class="num">228.2</td><td class="num">—</td><td class="tot">228.2</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- features -->
+  <section class="lp lp-sec" id="features">
+    <div class="kicker">Features</div>
+    <h2>핵심 기능</h2>
+    <div class="features">
+      <div class="feature">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 20V8l8-4 8 4v12" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 20v-6h6v6" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+        <h3>대회·리그 개설</h3>
+        <p>차전·타스크 구성과 채점 상수를 자유롭게 설정. 리그는 차전을, 차전은 타스크를 누적합니다.</p>
+      </div>
+      <div class="feature">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+        <h3>GAP 자동 채점</h3>
+        <p>거리·시간·리딩 점수와 데이 퀄리티를 FAI/CIVL 규정대로 즉시 계산합니다.</p>
+      </div>
+      <div class="feature">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0 4 4m-4-4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+        <h3>IGC 트랙 업로드</h3>
+        <p>트랙로그를 올리면 선수·기록을 배번·이름·별칭으로 자동 매칭합니다.</p>
+      </div>
+      <div class="feature">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+        <h3>파일럿 순위 조회</h3>
+        <p>파일럿이 자신의 점수·종합 순위와 일자별 타스크 결과를 실시간 확인합니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- audience split -->
+  <section class="lp lp-sec">
+    <div class="kicker">Who is it for</div>
+    <h2>두 사용자 그룹, 하나의 데이터</h2>
+    <div class="audience">
+      <div class="aud-card">
+        <span class="tag">FOR ORGANIZERS · 운영위원</span>
+        <h3>대회를 열고 채점한다</h3>
+        <ul>
+          <li>리그 → 차전 → 타스크 3단계 누적 순위</li>
+          <li>선수 로스터(배번·기체·별칭) 매칭으로 시즌 내내 동일인 자동 합산</li>
+          <li>차전마다 채점 상수(Nom.dist·time·LTR) 조정</li>
+        </ul>
+        <a href="/comp.html" class="btn primary">리그 채점 열기</a>
+      </div>
+      <div class="aud-card">
+        <span class="tag">FOR PILOTS · 파일럿</span>
+        <h3>내 비행을 확인한다</h3>
+        <ul>
+          <li>IGC + 과제(.xctsk) 업로드로 단일 비행 분석</li>
+          <li>과제 달성 여부·비행거리·구간 속도·최적경로 비교</li>
+          <li>SSS·ESS·Goal 통과 시각을 지도 위에서 확인</li>
+        </ul>
+        <a href="/index.html" class="btn secondary">단일 분석 열기</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- footer -->
+  <footer class="lp-foot">
+    <a href="/" class="brand">
+      <svg viewBox="0 0 32 32" width="20" height="20" fill="none" aria-hidden="true">
+        <path d="M16 27.33C5.33 27.33 5.33 17.33 16 17.33C24.67 17.33 24.67 9.33 16 9.33C10 9.33 10 4.67 16 4.67"
+              stroke="#3D9DFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="16" cy="4.67" r="2.33" fill="#F4B740"/>
+      </svg>
+      <span class="wm">SK<b>O</b>RE</span>
+    </a>
+    <span>하늘 위 모든 비행을, 공정한 점수와 순위로.</span>
+    <span style="margin-left:auto">WGS84 · FAI S7F / GAP 기반 · 절대 점수는 보정 중 잠정값</span>
+  </footer>
+
+  <script src="/auth.js"></script>
+  <script>
+    (async () => {
+      const u = await SKORE.renderAuthNav(document.getElementById("authbar"));
+      const p = document.getElementById("cta-primary");
+      const s = document.getElementById("cta-secondary");
+      if (!u) {
+        p.href = "/signup.html"; p.textContent = "대회 만들기";
+        s.href = "/login.html"; s.textContent = "내 순위 확인"; s.hidden = false;
+      } else if (u.role === "organizer") {
+        p.href = "/comp.html"; p.textContent = "리그 콘솔 열기";
+        s.hidden = true;
+      } else {
+        p.href = "/dashboard.html"; p.textContent = "내 순위 확인";
+        s.href = "/index.html"; s.textContent = "단일 분석"; s.hidden = false;
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+{
+  "taskType": "CLASSIC",
+  "version": 1,
+  "earthModel": "WGS84",
+  "turnpoints": [
+    {
+      "type": "TAKEOFF",
+      "radius": 400,
+      "waypoint": {
+        "name": "TAKEOFF",
+        "lat": 46.0,
+        "lon": 8.0,
+        "altSmoothed": 1000
+      }
+    },
+    {
+      "type": "SSS",
+      "radius": 1000,
+      "waypoint": {
+        "name": "START",
+        "lat": 46.0,
+        "lon": 8.0,
+        "altSmoothed": 1000
+      }
+    },
+    {
+      "radius": 2000,
+      "waypoint": {
+        "name": "T01",
+        "lat": 46.1,
+        "lon": 8.1,
+        "altSmoothed": 1000
+      }
+    },
+    {
+      "type": "ESS",
+      "radius": 3000,
+      "waypoint": {
+        "name": "ESS",
+        "lat": 46.15,
+        "lon": 8.05,
+        "altSmoothed": 1000
+      }
+    },
+    {
+      "radius": 400,
+      "waypoint": {
+        "name": "GOAL",
+        "lat": 46.16,
+        "lon": 8.06,
+        "altSmoothed": 1000
+      }
+    }
+  ],
+  "sss": {
+    "type": "RACE",
+    "direction": "EXIT",
+    "timeGates": [
+      "12:00:00"
+    ]
+  },
+  "goal": {
+    "type": "CYLINDER",
+    "deadline": "18:00:00"
+  }
+}

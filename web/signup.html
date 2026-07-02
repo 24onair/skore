@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SKORE — 회원가입</title>
+  <link rel="icon" type="image/svg+xml" href="/SKORE-appicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="landing">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <a href="/" class="brand">
+        <svg viewBox="0 0 32 32" width="26" height="26" fill="none" aria-hidden="true">
+          <path d="M16 27.33C5.33 27.33 5.33 17.33 16 17.33C24.67 17.33 24.67 9.33 16 9.33C10 9.33 10 4.67 16 4.67"
+                stroke="#3D9DFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="16" cy="4.67" r="2.33" fill="#F4B740"/>
+        </svg>
+        <span class="wm">SK<b>O</b>RE</span>
+      </a>
+      <h1>회원가입</h1>
+      <p class="sub">역할을 선택하고 시작하세요.</p>
+
+      <div id="err" class="auth-err" hidden></div>
+
+      <form id="signup-form" class="auth-form">
+        <div>
+          <div class="role-toggle" id="role-toggle">
+            <div class="role-opt active" data-role="organizer">대회운영자<small>리그·대회를 개설하고 채점</small></div>
+            <div class="role-opt" data-role="participant">대회참가자<small>내 성적·순위 확인</small></div>
+          </div>
+        </div>
+
+        <label>이메일<input id="email" type="email" autocomplete="email" required /></label>
+        <label>비밀번호 <small style="color:var(--low)">(6자 이상)</small><input id="password" type="password" autocomplete="new-password" minlength="6" required /></label>
+        <label>이름<input id="display_name" type="text" autocomplete="name" required /></label>
+
+        <div id="pilot-fields" style="display:none;flex-direction:column;gap:14px">
+          <label>트랙 표기 이름 <small style="color:var(--low)">(IGC에 찍히는 이름, 비우면 위 이름 사용)</small>
+            <input id="pilot_name" type="text" placeholder="예: Song Daejin" /></label>
+          <label>배번 <small style="color:var(--low)">(있으면 정확히 매칭)</small>
+            <input id="bib" type="text" placeholder="예: 001" /></label>
+          <label>기체 <small style="color:var(--low)">(리그 참가 시 명단에 표시)</small>
+            <input id="glider" type="text" placeholder="예: OZONE Enzo 3" /></label>
+          <label>기체 등급 <small style="color:var(--low)">(EN 등급 · 등급별 순위에 사용)</small>
+            <select id="glider_class">
+              <option value="">— 미지정 —</option>
+              <option value="CCC">CCC</option>
+              <option value="D">EN-D</option>
+              <option value="C">EN-C</option>
+              <option value="B">EN-B</option>
+              <option value="A">EN-A</option>
+            </select></label>
+          <label>연락처 <small style="color:var(--low)">(운영자에게만 표시)</small>
+            <input id="contact" type="text" autocomplete="tel" placeholder="예: 010-1234-5678" /></label>
+        </div>
+
+        <button type="submit" id="go" class="btn primary">가입하기</button>
+      </form>
+
+      <div class="auth-foot">이미 계정이 있으신가요? <a href="/login.html">로그인</a></div>
+    </div>
+  </div>
+
+  <script src="/auth.js"></script>
+  <script>
+    SKORE.me().then((u) => { if (u) location.href = SKORE.home(u); });
+    let role = "organizer";
+    const err = document.getElementById("err");
+    const pilotFields = document.getElementById("pilot-fields");
+    document.querySelectorAll(".role-opt").forEach((opt) => {
+      opt.addEventListener("click", () => {
+        document.querySelectorAll(".role-opt").forEach((o) => o.classList.remove("active"));
+        opt.classList.add("active");
+        role = opt.dataset.role;
+        pilotFields.style.display = role === "participant" ? "flex" : "none";
+      });
+    });
+
+    document.getElementById("signup-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      err.hidden = true;
+      const btn = document.getElementById("go");
+      btn.disabled = true; btn.textContent = "가입 중…";
+      const fd = new FormData();
+      fd.append("email", document.getElementById("email").value);
+      fd.append("password", document.getElementById("password").value);
+      fd.append("display_name", document.getElementById("display_name").value);
+      fd.append("role", role);
+      if (role === "participant") {
+        fd.append("pilot_name", document.getElementById("pilot_name").value);
+        fd.append("bib", document.getElementById("bib").value);
+        fd.append("glider", document.getElementById("glider").value);
+        fd.append("glider_class", document.getElementById("glider_class").value);
+        fd.append("contact", document.getElementById("contact").value);
+      }
+      try {
+        const res = await fetch("/api/auth/signup", { method: "POST", body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || "가입 실패");
+        location.href = SKORE.home(data.user);
+      } catch (ex) {
+        err.textContent = ex.message; err.hidden = false;
+        btn.disabled = false; btn.textContent = "가입하기";
+      }
+    });
+  </script>
+</body>
+</html>

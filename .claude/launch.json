@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": ".venv/bin/uvicorn",
+      "runtimeArgs": ["api.main:app", "--host", "127.0.0.1", "--port", "8137"],
+      "port": 8137,
+      "autoPort": false
+    },
+    {
+      "name": "web-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8200", "--directory", "web"],
+      "port": 8200,
+      "autoPort": false
+    }
+  ]
+}

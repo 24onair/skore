@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SKORE — 리그 채점</title>
+  <link rel="icon" type="image/svg+xml" href="/SKORE-appicon.svg" />
+  <link rel="apple-touch-icon" href="/SKORE-appicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <aside id="panel">
+    <a href="/" class="brand" style="margin-bottom:2px">
+      <svg viewBox="0 0 32 32" width="24" height="24" fill="none" aria-hidden="true">
+        <path d="M16 27.33C5.33 27.33 5.33 17.33 16 17.33C24.67 17.33 24.67 9.33 16 9.33C10 9.33 10 4.67 16 4.67"
+              stroke="#3D9DFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="16" cy="4.67" r="2.33" fill="#F4B740"/>
+      </svg>
+      <span class="wm">SK<b>O</b>RE</span>
+    </a>
+    <nav class="nav">
+      <a href="/index.html">단일 분석</a>
+      <a href="/comp.html" class="active">리그 채점</a>
+      <a href="/roster.html">등록 선수</a>
+    </nav>
+    <div class="panel-auth" id="authbar"></div>
+    <h1>리그 채점<br /><small>리그 › 차전 › 타스크</small></h1>
+
+    <label class="field">
+      <span>리그 선택</span>
+      <select id="league-select"><option value="">— 리그를 선택 —</option></select>
+    </label>
+    <button type="button" id="new-league-btn" class="ghost">+ 새 리그 만들기</button>
+
+    <form id="create-form" hidden>
+      <label class="field"><span>리그 이름</span><input id="c-name" type="text" placeholder="2025~2026 남부리그" required /></label>
+      <p class="muted" style="margin:0">아래는 <b>기본 채점값</b> — 차전 추가 시 복사되며 차전마다 수정할 수 있습니다.</p>
+      <div class="grid2">
+        <label class="field"><span>Nom. dist (km)</span><input id="c-nomdist" type="number" value="30" min="1" /></label>
+        <label class="field"><span>Nom. time (분)</span><input id="c-nomtime" type="number" value="90" min="1" /></label>
+        <label class="field"><span>Nom. launch</span><input id="c-nomlaunch" type="number" value="0.96" min="0" max="1" step="0.01" /></label>
+        <label class="field"><span>Nom. goal</span><input id="c-nomgoal" type="number" value="0.25" min="0" max="1" step="0.01" /></label>
+        <label class="field"><span>Min dist (km)</span><input id="c-mindist" type="number" value="7" min="0" step="0.5" /></label>
+        <label class="field"><span>LTR</span><input id="c-ltr" type="number" value="0.26" min="0" max="0.5" step="0.01" /></label>
+      </div>
+      <button type="submit">리그 생성</button>
+    </form>
+
+    <div id="claim-box" hidden>
+      <h2 style="margin-bottom:6px">미소유 리그</h2>
+      <div class="muted" style="font-size:12px;margin-bottom:8px">로그인 도입 전에 만든 리그입니다. 내 소유로 가져오면 관리할 수 있습니다.</div>
+      <div id="claim-list" class="tasklist"></div>
+    </div>
+
+    <div id="crumb" class="muted" hidden></div>
+
+    <div id="status" class="muted">리그를 선택하거나 새로 만든 뒤, 차전을 추가하고 각 차전에 타스크를 넣으면 누적 순위가 만들어집니다.</div>
+
+    <footer class="muted">⚠️ 리딩 점수·일부 상수는 보정 중. 절대 점수는 잠정값.</footer>
+  </aside>
+
+  <div id="main">
+    <div id="empty" class="muted">리그를 선택하면 시즌 종합 순위와 차전이 표시됩니다.</div>
+
+    <!-- ============ LEAGUE VIEW ============ -->
+    <div id="league-view" hidden>
+      <h2 id="league-title"></h2>
+      <div class="dq" id="league-params"></div>
+
+      <div class="roster-head">
+        <h3>선수 등록 <small id="roster-count" class="muted"></small></h3>
+        <div class="roster-tools">
+          <a id="roster-approvals" class="ghost" style="text-decoration:none">참가 신청·명단 관리 →</a>
+          <label class="ghost filebtn">IGC에서 가져오기
+            <input id="roster-import" type="file" accept=".igc,.IGC" multiple hidden />
+          </label>
+          <button type="button" id="roster-add-btn" class="ghost">+ 직접 추가</button>
+        </div>
+      </div>
+      <form id="pilot-form" class="pilot-form" hidden>
+        <input id="p-bib" type="text" placeholder="배번" />
+        <input id="p-name" type="text" placeholder="이름" required />
+        <input id="p-glider" type="text" placeholder="기체" />
+        <select id="p-class" title="기체 등급">
+          <option value="">등급 —</option>
+          <option value="CCC">CCC</option>
+          <option value="D">D</option>
+          <option value="C">C</option>
+          <option value="B">B</option>
+          <option value="A">A</option>
+        </select>
+        <input id="p-aliases" type="text" placeholder="별칭 (쉼표로 여러 개, 예: SungHoon Son)" />
+        <select id="p-alias-pick" hidden></select>
+        <button type="submit">등록</button>
+        <button type="button" id="pilot-cancel" class="ghost">취소</button>
+      </form>
+      <div class="tablewrap"><table class="rank" id="roster-table"></table></div>
+
+      <div class="roster-head" style="margin-top:26px">
+        <h3>리그 종합 순위 <small id="league-standings-note" class="muted"></small></h3>
+        <select id="league-class-filter" class="class-filter" title="등급별 순위"></select>
+      </div>
+      <div class="tablewrap"><table class="rank" id="league-standings-table"></table></div>
+
+      <div class="roster-head" style="margin-top:26px">
+        <h3>차전</h3>
+        <button type="button" id="new-meet-btn" class="ghost">+ 새 차전 추가</button>
+      </div>
+      <form id="meet-form" class="pilot-form" hidden>
+        <input id="m-name" type="text" placeholder="예: 5차전" required />
+        <button type="submit">차전 생성</button>
+        <button type="button" id="meet-cancel" class="ghost">취소</button>
+        <span class="muted" style="align-self:center">채점값은 리그 기본값을 따릅니다</span>
+      </form>
+      <div id="meet-list" class="tasklist"></div>
+    </div>
+
+    <!-- ============ MEET VIEW ============ -->
+    <div id="meet-view" hidden>
+      <button type="button" id="back-to-league" class="rowbtn edit" style="margin-bottom:12px">← 리그 종합</button>
+      <h2 id="meet-title"></h2>
+      <div class="dq" id="meet-params"></div>
+
+      <div class="roster-head">
+        <h3>차전 종합 순위 <small id="meet-standings-note" class="muted"></small></h3>
+        <select id="meet-class-filter" class="class-filter" title="등급별 순위"></select>
+      </div>
+      <div class="tablewrap"><table class="rank" id="meet-standings-table"></table></div>
+
+      <div class="roster-head" style="margin-top:26px">
+        <h3>타스크</h3>
+        <button type="button" id="new-task-btn" class="ghost">+ 타스크 추가</button>
+      </div>
+      <form id="task-form" hidden>
+        <label class="field"><span>타스크 이름</span><input id="t-name" type="text" placeholder="예: 1일차" /></label>
+        <label class="field"><span>선수 IGC (여러 개)</span><input id="t-igcs" type="file" accept=".igc,.IGC" multiple required /></label>
+        <label class="field"><span>과제 (.xctsk)</span><input id="t-task" type="file" accept=".xctsk,.json" required /></label>
+        <label class="field"><span>참가(등록) 인원 <small>(비우면 업로드 수)</small></span><input id="t-present" type="number" min="0" placeholder="자동" /></label>
+        <button type="submit" id="t-go">타스크 채점·추가</button>
+      </form>
+      <div id="task-list" class="tasklist"></div>
+
+      <div id="task-detail" hidden>
+        <h3 id="task-detail-title" style="margin-top:26px"></h3>
+        <div class="dq" id="task-dq"></div>
+        <div class="tablewrap">
+          <table class="rank">
+            <thead><tr>
+              <th>순위</th><th class="bib">배번</th><th class="l">선수</th><th class="l">기체</th><th class="l">등급</th><th>거리</th><th>상태</th>
+              <th>구간시간</th><th>거리점</th><th>시간점</th><th>리딩점</th><th>총점</th>
+            </tr></thead>
+            <tbody id="task-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/auth.js"></script>
+  <script src="/comp.js"></script>
+</body>
+</html>

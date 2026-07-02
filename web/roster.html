@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SKORE — 등록 선수 명단</title>
+  <link rel="icon" type="image/svg+xml" href="/SKORE-appicon.svg" />
+  <link rel="apple-touch-icon" href="/SKORE-appicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <aside id="panel">
+    <a href="/" class="brand" style="margin-bottom:2px">
+      <svg viewBox="0 0 32 32" width="24" height="24" fill="none" aria-hidden="true">
+        <path d="M16 27.33C5.33 27.33 5.33 17.33 16 17.33C24.67 17.33 24.67 9.33 16 9.33C10 9.33 10 4.67 16 4.67"
+              stroke="#3D9DFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="16" cy="4.67" r="2.33" fill="#F4B740"/>
+      </svg>
+      <span class="wm">SK<b>O</b>RE</span>
+    </a>
+    <nav class="nav">
+      <a href="/index.html">단일 분석</a>
+      <a href="/comp.html">리그 채점</a>
+      <a href="/roster.html" class="active">등록 선수</a>
+    </nav>
+    <div class="panel-auth" id="authbar"></div>
+    <h1>등록 선수 명단<br /><small>참가 신청 승인 · 선수 정보 관리</small></h1>
+
+    <label class="field">
+      <span>리그 선택</span>
+      <select id="league-select"><option value="">— 리그를 선택 —</option></select>
+    </label>
+
+    <div id="status" class="muted">리그를 선택하면 참가 신청과 등록 선수 명단이 표시됩니다.</div>
+
+    <footer class="muted">연락처는 이 화면(리그 소유자)에서만 보입니다.</footer>
+  </aside>
+
+  <div id="main">
+    <div id="empty" class="muted">리그를 선택하세요.</div>
+
+    <div id="roster-view" hidden>
+      <h2 id="league-title"></h2>
+
+      <div class="roster-head">
+        <h3>승인 대기 <small id="pending-count" class="muted"></small></h3>
+      </div>
+      <div class="tablewrap"><table class="rank" id="pending-table"></table></div>
+
+      <div class="roster-head" style="margin-top:26px">
+        <h3>등록 선수 <small id="approved-count" class="muted"></small></h3>
+      </div>
+      <div class="tablewrap"><table class="rank" id="approved-table"></table></div>
+    </div>
+  </div>
+
+  <script src="/auth.js"></script>
+  <script src="/roster.js"></script>
+</body>
+</html>

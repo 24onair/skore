@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SKORE — 내 성적</title>
+  <link rel="icon" type="image/svg+xml" href="/SKORE-appicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="landing">
+  <nav class="lp-nav">
+    <a href="/" class="brand">
+      <svg viewBox="0 0 32 32" width="26" height="26" fill="none" aria-hidden="true">
+        <path d="M16 27.33C5.33 27.33 5.33 17.33 16 17.33C24.67 17.33 24.67 9.33 16 9.33C10 9.33 10 4.67 16 4.67"
+              stroke="#3D9DFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="16" cy="4.67" r="2.33" fill="#F4B740"/>
+      </svg>
+      <span class="wm">SK<b>O</b>RE</span>
+    </a>
+    <a href="/index.html" class="link">단일 분석</a>
+    <div class="authbar" id="authbar"></div>
+  </nav>
+
+  <main class="lp" style="padding-top:8px">
+    <header style="margin:18px 0 8px">
+      <div class="kicker" style="font-family:var(--font-mono);font-size:12px;letter-spacing:.18em;color:var(--low);text-transform:uppercase">My Results</div>
+      <h1 id="hello" style="font-family:var(--font-display);font-size:30px;margin:8px 0 0"></h1>
+      <p class="muted" id="profile-line" style="margin:8px 0 0"></p>
+    </header>
+
+    <section style="margin-top:26px">
+      <h2 style="font-family:var(--font-display);font-size:20px;margin:0 0 4px">리그 참가</h2>
+      <p class="muted" style="margin:0 0 12px;font-size:13px">참가할 리그에 신청하면 운영자 승인 후 등록 선수 명단에 오릅니다.</p>
+      <div id="join-list" class="join-list"></div>
+    </section>
+
+    <div id="empty" class="muted" hidden style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:18px">
+      아직 매칭된 기록이 없습니다. 가입 시 입력한 <b>이름·배번</b>이 대회 로스터의 표기와 일치하는지 확인하세요.
+      운영자가 트랙을 채점하면 여기에 자동으로 표시됩니다.
+    </div>
+
+    <h2 style="font-family:var(--font-display);font-size:20px;margin:28px 0 4px">내 성적</h2>
+    <div id="cards" class="my-cards" style="margin-top:12px"></div>
+  </main>
+
+  <footer class="lp-foot">
+    <span class="muted">하늘 위 모든 비행을, 공정한 점수와 순위로.</span>
+    <span style="margin-left:auto"><a href="/index.html" style="color:var(--accent);text-decoration:none">내 IGC 단일 분석 →</a></span>
+  </footer>
+
+  <script src="/auth.js"></script>
+  <script src="/dashboard.js"></script>
+</body>
+</html>

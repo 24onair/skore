@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Node / web
+web/node_modules/
+web/dist/
+.env
+.env.local
+
+# Persisted competition data
+data/
+
+# Real pilot IGC tracks (personal data — kept local; regression test skips if absent)
+samples/nambu4/
+
+# OS
+.DS_Store

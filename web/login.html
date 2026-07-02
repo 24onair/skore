@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SKORE — 로그인</title>
+  <link rel="icon" type="image/svg+xml" href="/SKORE-appicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="landing">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <a href="/" class="brand">
+        <svg viewBox="0 0 32 32" width="26" height="26" fill="none" aria-hidden="true">
+          <path d="M16 27.33C5.33 27.33 5.33 17.33 16 17.33C24.67 17.33 24.67 9.33 16 9.33C10 9.33 10 4.67 16 4.67"
+                stroke="#3D9DFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="16" cy="4.67" r="2.33" fill="#F4B740"/>
+        </svg>
+        <span class="wm">SK<b>O</b>RE</span>
+      </a>
+      <h1>로그인</h1>
+      <p class="sub">대회 운영·참가 기록을 이어서 관리하세요.</p>
+
+      <div id="err" class="auth-err" hidden></div>
+
+      <form id="login-form" class="auth-form">
+        <label>이메일<input id="email" type="email" autocomplete="email" required /></label>
+        <label>비밀번호<input id="password" type="password" autocomplete="current-password" required /></label>
+        <button type="submit" id="go" class="btn primary">로그인</button>
+      </form>
+
+      <div class="auth-foot">계정이 없으신가요? <a href="/signup.html">회원가입</a></div>
+    </div>
+  </div>
+
+  <script src="/auth.js"></script>
+  <script>
+    SKORE.me().then((u) => { if (u) location.href = SKORE.home(u); });
+    const err = document.getElementById("err");
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      err.hidden = true;
+      const btn = document.getElementById("go");
+      btn.disabled = true; btn.textContent = "로그인 중…";
+      const fd = new FormData();
+      fd.append("email", document.getElementById("email").value);
+      fd.append("password", document.getElementById("password").value);
+      try {
+        const res = await fetch("/api/auth/login", { method: "POST", body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || "로그인 실패");
+        location.href = SKORE.home(data.user);
+      } catch (ex) {
+        err.textContent = ex.message; err.hidden = false;
+        btn.disabled = false; btn.textContent = "로그인";
+      }
+    });
+  </script>
+</body>
+</html>
