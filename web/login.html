@@ -36,23 +36,27 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
   <script src="/auth.js"></script>
   <script>
     SKORE.me().then((u) => { if (u) location.href = SKORE.home(u); });
     const err = document.getElementById("err");
+    if (new URLSearchParams(location.search).has("confirm")) {
+      err.textContent = "가입이 접수되었습니다. 이메일의 확인 링크를 누른 뒤 로그인하세요.";
+      err.hidden = false;
+    }
     document.getElementById("login-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       err.hidden = true;
       const btn = document.getElementById("go");
       btn.disabled = true; btn.textContent = "로그인 중…";
-      const fd = new FormData();
-      fd.append("email", document.getElementById("email").value);
-      fd.append("password", document.getElementById("password").value);
       try {
-        const res = await fetch("/api/auth/login", { method: "POST", body: fd });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.detail || "로그인 실패");
-        location.href = SKORE.home(data.user);
+        await SKORE.login(
+          document.getElementById("email").value,
+          document.getElementById("password").value,
+        );
+        location.href = SKORE.home(await SKORE.me());
       } catch (ex) {
         err.textContent = ex.message; err.hidden = false;
         btn.disabled = false; btn.textContent = "로그인";

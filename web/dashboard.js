@@ -28,8 +28,8 @@ const $ = (id) => document.getElementById(id);
 // --- league join / membership status ----------------------------------------
 async function loadJoin() {
   const [leaguesRes, memRes] = await Promise.all([
-    fetch("/api/leagues"),
-    fetch("/api/me/memberships"),
+    SKORE.api("/api/leagues"),
+    SKORE.api("/api/me/memberships"),
   ]);
   const { leagues } = await leaguesRes.json();
   const { memberships } = await memRes.json();
@@ -61,13 +61,13 @@ async function loadJoin() {
 }
 
 async function joinLeague(id) {
-  const res = await fetch(`/api/leagues/${id}/register`, { method: "POST" });
+  const res = await SKORE.api(`/api/leagues/${id}/register`, { method: "POST" });
   if (res.ok) { await loadJoin(); }
   else { const e = await res.json().catch(() => ({})); alert("신청 실패: " + (e.detail || res.status)); }
 }
 
 async function loadResults() {
-  const res = await fetch("/api/me/results");
+  const res = await SKORE.api("/api/me/results");
   if (!res.ok) { location.href = "/login.html"; return; }
   const { results } = await res.json();
   const cards = $("cards");
@@ -123,7 +123,7 @@ function editProfile(user) {
   fd.append("glider", glider);
   fd.append("glider_class", gclass);
   fd.append("contact", contact);
-  fetch("/api/me/profile", { method: "PATCH", body: fd }).then((r) => {
+  SKORE.api("/api/me/profile", { method: "PATCH", body: fd }).then((r) => {
     if (r.ok) location.reload();
     else alert("프로필 수정 실패");
   });

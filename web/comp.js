@@ -68,7 +68,7 @@ function matchRoster(row) {
 
 // --- leagues list (organizer's own leagues only) ----------------------------
 async function loadLeagues(selectId) {
-  const { leagues } = await (await fetch("/api/leagues?mine=1")).json();
+  const { leagues } = await (await SKORE.api("/api/leagues?mine=1")).json();
   const sel = $("league-select");
   sel.innerHTML = `<option value="">— 리그를 선택 —</option>` +
     leagues.map((l) => `<option value="${l.id}">${esc(l.name)} (${l.meet_count}차전)</option>`).join("");
@@ -107,7 +107,7 @@ $("create-form").addEventListener("submit", async (e) => {
   fd.append("nominal_goal", String(Number($("c-nomgoal").value) || 0.25));
   fd.append("min_distance", String(Number($("c-mindist").value) * 1000));
   fd.append("leading_time_ratio", String(Number($("c-ltr").value) || 0.26));
-  const lg = await (await fetch("/api/leagues", { method: "POST", body: fd })).json();
+  const lg = await (await SKORE.api("/api/leagues", { method: "POST", body: fd })).json();
   $("create-form").hidden = true;
   $("create-form").reset();
   await loadLeagues(lg.id);
@@ -116,7 +116,7 @@ $("create-form").addEventListener("submit", async (e) => {
 
 // --- select / render league -------------------------------------------------
 async function selectLeague(id) {
-  const res = await fetch(`/api/leagues/${id}`);
+  const res = await SKORE.api(`/api/leagues/${id}`);
   if (!res.ok) return;
   league = await res.json();
   meet = null;
@@ -251,12 +251,12 @@ async function savePilot(tr) {
   fd.append("glider", tr.querySelector(".e-glider").value);
   fd.append("glider_class", tr.querySelector(".e-class").value);
   fd.append("aliases", tr.querySelector(".e-aliases").value);
-  const res = await fetch(`/api/leagues/${league.id}/roster/${pid}`, { method: "PATCH", body: fd });
+  const res = await SKORE.api(`/api/leagues/${league.id}/roster/${pid}`, { method: "PATCH", body: fd });
   if (res.ok) { editingPid = null; await selectLeague(league.id); }
 }
 
 async function deletePilot(pid) {
-  const res = await fetch(`/api/leagues/${league.id}/roster/${pid}`, { method: "DELETE" });
+  const res = await SKORE.api(`/api/leagues/${league.id}/roster/${pid}`, { method: "DELETE" });
   if (res.ok) { if (editingPid === pid) editingPid = null; await selectLeague(league.id); }
 }
 
@@ -278,7 +278,7 @@ $("pilot-form").addEventListener("submit", async (e) => {
   fd.append("glider", $("p-glider").value);
   fd.append("glider_class", $("p-class").value);
   fd.append("aliases", $("p-aliases").value);
-  const res = await fetch(`/api/leagues/${league.id}/roster`, { method: "POST", body: fd });
+  const res = await SKORE.api(`/api/leagues/${league.id}/roster`, { method: "POST", body: fd });
   if (res.ok) { $("pilot-form").reset(); $("pilot-form").hidden = true; await selectLeague(league.id); }
 });
 
@@ -286,12 +286,16 @@ $("roster-import").addEventListener("change", async (e) => {
   const files = e.target.files;
   if (!files.length) return;
   if (!league) { $("status").className = "muted"; $("status").textContent = "먼저 리그를 선택하세요."; e.target.value = ""; return; }
-  const fd = new FormData();
-  for (const f of files) fd.append("igcs", f);
   const status = $("status");
-  status.className = "muted"; status.textContent = `${files.length}개 IGC에서 선수 추출 중…`;
+  status.className = "muted"; status.textContent = `${files.length}개 IGC 업로드 중…`;
   try {
-    const res = await fetch(`/api/leagues/${league.id}/roster/import`, { method: "POST", body: fd });
+    const igc_urls = await SKORE.uploadIGCs(files);
+    status.textContent = `${files.length}개 IGC에서 선수 추출 중…`;
+    const res = await SKORE.api(`/api/leagues/${league.id}/roster/import`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ igc_urls }),
+    });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "가져오기 실패");
     status.textContent = `${data.added}명 추가 (총 ${data.roster_size}명)`;
@@ -350,7 +354,7 @@ async function deleteMeet(id, name, taskCount) {
     ? `차전 "${name}"과(와) 그 안의 타스크 ${taskCount}개가 모두 삭제됩니다. 리그 종합에서도 빠집니다.`
     : `차전 "${name}"을(를) 삭제할까요?`;
   if (!confirm(warn)) return;
-  const res = await fetch(`/api/leagues/${league.id}/meets/${id}`, { method: "DELETE" });
+  const res = await SKORE.api(`/api/leagues/${league.id}/meets/${id}`, { method: "DELETE" });
   if (res.ok) await selectLeague(league.id);   // 리그 종합 + 차전 목록 새로고침
   else { const e = await res.json().catch(() => ({})); alert("삭제 실패: " + (e.detail || res.status)); }
 }
@@ -366,7 +370,7 @@ $("meet-form").addEventListener("submit", async (e) => {
   if (!league) return;
   const fd = new FormData();
   fd.append("name", $("m-name").value);
-  const res = await fetch(`/api/leagues/${league.id}/meets`, { method: "POST", body: fd });
+  const res = await SKORE.api(`/api/leagues/${league.id}/meets`, { method: "POST", body: fd });
   if (res.ok) {
     const { meet: saved } = await res.json();
     $("meet-form").reset(); $("meet-form").hidden = true;
@@ -377,7 +381,7 @@ $("meet-form").addEventListener("submit", async (e) => {
 
 // --- select / render meet ---------------------------------------------------
 async function openMeet(meetId) {
-  const res = await fetch(`/api/leagues/${league.id}/meets/${meetId}`);
+  const res = await SKORE.api(`/api/leagues/${league.id}/meets/${meetId}`);
   if (!res.ok) return;
   meet = await res.json();
   renderMeet();
@@ -456,7 +460,7 @@ async function deleteTask(id, name) {
   if (!meet) return;
   if (!confirm(`타스크 "${name}"의 채점 결과를 삭제할까요? (차전·리그 종합에서도 빠집니다)`)) return;
   const meetId = meet.id;   // capture before selectLeague() resets `meet` to null
-  const res = await fetch(`/api/leagues/${league.id}/meets/${meetId}/tasks/${id}`, { method: "DELETE" });
+  const res = await SKORE.api(`/api/leagues/${league.id}/meets/${meetId}/tasks/${id}`, { method: "DELETE" });
   if (res.ok) {
     if (currentTaskId === id) { currentTaskId = null; $("task-detail").hidden = true; }
     await selectLeague(league.id);   // refresh league standings (resets `meet`)
@@ -477,16 +481,22 @@ $("task-form").addEventListener("submit", async (e) => {
   const igcs = $("t-igcs").files, task = $("t-task").files[0];
   if (!igcs.length || !task || !meet) return;
   const btn = $("t-go"), status = $("status");
-  btn.disabled = true; status.className = "muted"; status.textContent = `${igcs.length}명 채점 중…`;
-
-  const fd = new FormData();
-  for (const f of igcs) fd.append("igcs", f);
-  fd.append("task", task);
-  fd.append("task_name", $("t-name").value);
-  fd.append("num_present", String(Number($("t-present").value) || 0));
+  btn.disabled = true; status.className = "muted"; status.textContent = `${igcs.length}개 IGC 업로드 중…`;
 
   try {
-    const res = await fetch(`/api/leagues/${league.id}/meets/${meet.id}/tasks`, { method: "POST", body: fd });
+    const task_xctsk = await SKORE.readText(task);
+    const igc_urls = await SKORE.uploadIGCs(igcs);
+    status.textContent = `${igcs.length}명 채점 중…`;
+    const res = await SKORE.api(`/api/leagues/${league.id}/meets/${meet.id}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        igc_urls,
+        task_xctsk,
+        task_name: $("t-name").value,
+        num_present: Number($("t-present").value) || 0,
+      }),
+    });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
       throw new Error(err.detail || "채점 실패");
@@ -507,7 +517,7 @@ $("task-form").addEventListener("submit", async (e) => {
 
 // --- task detail ------------------------------------------------------------
 async function showTask(taskId) {
-  const res = await fetch(`/api/leagues/${league.id}/meets/${meet.id}/tasks/${taskId}`);
+  const res = await SKORE.api(`/api/leagues/${league.id}/meets/${meet.id}/tasks/${taskId}`);
   if (!res.ok) return;
   currentTaskId = taskId;
   const task = await res.json();
@@ -586,7 +596,7 @@ async function showTask(taskId) {
 
 // --- ownerless (pre-auth) leagues an organizer can claim --------------------
 async function loadClaimable() {
-  const { leagues } = await (await fetch("/api/leagues")).json();
+  const { leagues } = await (await SKORE.api("/api/leagues")).json();
   const orphans = leagues.filter((l) => !l.owner_id);
   const box = $("claim-box");
   if (!orphans.length) { box.hidden = true; return; }
@@ -598,7 +608,7 @@ async function loadClaimable() {
      </button>`).join("");
   $("claim-list").querySelectorAll(".taskcard").forEach((b) =>
     b.addEventListener("click", async () => {
-      const res = await fetch(`/api/leagues/${b.dataset.id}/claim`, { method: "POST" });
+      const res = await SKORE.api(`/api/leagues/${b.dataset.id}/claim`, { method: "POST" });
       if (res.ok) { await loadLeagues(b.dataset.id); await loadClaimable(); selectLeague(b.dataset.id); }
     }));
 }

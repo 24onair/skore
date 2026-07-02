@@ -18,7 +18,7 @@ function classSelect(current) {
 
 // --- load owned leagues into the picker --------------------------------------
 async function loadLeagues() {
-  const { leagues } = await (await fetch("/api/leagues?mine=1")).json();
+  const { leagues } = await (await SKORE.api("/api/leagues?mine=1")).json();
   const sel = $("league-select");
   sel.innerHTML = `<option value="">— 리그를 선택 —</option>` +
     leagues.map((l) => `<option value="${l.id}">${esc(l.name)} (${l.meet_count}차전)</option>`).join("");
@@ -34,7 +34,7 @@ $("league-select").addEventListener("change", (e) => {
 
 async function selectLeague(id) {
   leagueId = id;
-  const res = await fetch(`/api/leagues/${id}/registrations`);
+  const res = await SKORE.api(`/api/leagues/${id}/registrations`);
   if (!res.ok) { $("status").textContent = "명단을 불러오지 못했습니다."; return; }
   rows = (await res.json()).registrations;
   editingPid = null;
@@ -142,7 +142,7 @@ function wire(table) {
 }
 
 async function setStatus(pid, action) {
-  const res = await fetch(`/api/leagues/${leagueId}/registrations/${pid}/${action}`, { method: "POST" });
+  const res = await SKORE.api(`/api/leagues/${leagueId}/registrations/${pid}/${action}`, { method: "POST" });
   if (res.ok) await selectLeague(leagueId);
   else alert("처리 실패");
 }
@@ -155,7 +155,7 @@ async function savePilot(pid, tr) {
   fd.append("glider_class", tr.querySelector(".e-class").value);
   fd.append("contact", tr.querySelector(".e-contact").value);
   fd.append("aliases", tr.querySelector(".e-aliases").value);
-  const res = await fetch(`/api/leagues/${leagueId}/roster/${pid}`, { method: "PATCH", body: fd });
+  const res = await SKORE.api(`/api/leagues/${leagueId}/roster/${pid}`, { method: "PATCH", body: fd });
   if (res.ok) { editingPid = null; await selectLeague(leagueId); }
   else alert("저장 실패");
 }
@@ -163,7 +163,7 @@ async function savePilot(pid, tr) {
 async function deletePilot(pid) {
   const r = rows.find((x) => x.pid === pid);
   if (!confirm(`"${r ? r.name : pid}" 선수를 명단에서 삭제할까요?`)) return;
-  const res = await fetch(`/api/leagues/${leagueId}/roster/${pid}`, { method: "DELETE" });
+  const res = await SKORE.api(`/api/leagues/${leagueId}/roster/${pid}`, { method: "DELETE" });
   if (res.ok) { if (editingPid === pid) editingPid = null; await selectLeague(leagueId); }
   else alert("삭제 실패");
 }

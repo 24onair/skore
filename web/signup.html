@@ -65,6 +65,8 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
   <script src="/auth.js"></script>
   <script>
     SKORE.me().then((u) => { if (u) location.href = SKORE.home(u); });
@@ -85,23 +87,23 @@
       err.hidden = true;
       const btn = document.getElementById("go");
       btn.disabled = true; btn.textContent = "가입 중…";
-      const fd = new FormData();
-      fd.append("email", document.getElementById("email").value);
-      fd.append("password", document.getElementById("password").value);
-      fd.append("display_name", document.getElementById("display_name").value);
-      fd.append("role", role);
+      const val = (id) => document.getElementById(id).value;
+      const meta = { display_name: val("display_name"), role };
       if (role === "participant") {
-        fd.append("pilot_name", document.getElementById("pilot_name").value);
-        fd.append("bib", document.getElementById("bib").value);
-        fd.append("glider", document.getElementById("glider").value);
-        fd.append("glider_class", document.getElementById("glider_class").value);
-        fd.append("contact", document.getElementById("contact").value);
+        meta.pilot_name = val("pilot_name");
+        meta.bib = val("bib");
+        meta.glider = val("glider");
+        meta.glider_class = val("glider_class");
+        meta.contact = val("contact");
       }
       try {
-        const res = await fetch("/api/auth/signup", { method: "POST", body: fd });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.detail || "가입 실패");
-        location.href = SKORE.home(data.user);
+        await SKORE.signup(val("email"), val("password"), meta);
+        const u = await SKORE.me();
+        if (u) {
+          location.href = SKORE.home(u);        // auto-confirm on → session ready
+        } else {
+          location.href = "/login.html?confirm=1"; // email confirmation required
+        }
       } catch (ex) {
         err.textContent = ex.message; err.hidden = false;
         btn.disabled = false; btn.textContent = "가입하기";
