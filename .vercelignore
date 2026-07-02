@@ -1,0 +1,15 @@
+# Keep the deployment small and free of private/dev files.
+.venv/
+venv/
+__pycache__/
+*.pyc
+data/
+samples/
+scripts/
+scoring/tests/
+*.zip
+*.pdf
+DECISIONS.md
+README.md
+.env
+.env.local
