@@ -188,12 +188,19 @@ function renderRoster() {
   wireRosterRows();
 }
 
+// Combined wing display: "브랜드 날개명" (either part may be empty; IGC/legacy data
+// keeps its full string in `glider` with no brand, so this renders unchanged).
+function gliderText(o) {
+  const b = (o.glider_brand || "").trim(), n = (o.glider || "").trim();
+  return b && n ? `${b} ${n}` : (b || n);
+}
+
 function viewRowHTML(p) {
   const aliases = (p.aliases || []).map(esc).join(", ");
   return `<tr data-pid="${p.pid}">
      <td class="bib">${esc(p.bib) || "—"}</td>
      <td class="l">${esc(p.name)}</td>
-     <td class="l num">${esc(p.glider) || "—"}</td>
+     <td class="l num">${esc(gliderText(p)) || "—"}</td>
      <td class="l num">${esc(p.glider_class) || "—"}</td>
      <td class="l num">${aliases || "—"}</td>
      <td class="actions">
@@ -212,7 +219,7 @@ function editRowHTML(p) {
   return `<tr data-pid="${p.pid}" class="editing">
      <td class="bib"><input class="e-bib" type="text" value="${esc(p.bib)}" placeholder="배번" /></td>
      <td class="l"><input class="e-name" type="text" value="${esc(p.name)}" placeholder="이름" /></td>
-     <td class="l"><input class="e-glider" type="text" value="${esc(p.glider)}" placeholder="기체" /></td>
+     <td class="l"><input class="e-glider-brand" type="text" value="${esc(p.glider_brand)}" placeholder="브랜드" style="margin-bottom:4px" /><input class="e-glider" type="text" value="${esc(p.glider)}" placeholder="날개명" /></td>
      <td class="l">${classSelectHTML("e-class", p.glider_class)}</td>
      <td class="l">
        <input class="e-aliases" type="text" value="${esc(aliases)}" placeholder="예: SungHoon Son, 손성훈2" />
@@ -248,6 +255,7 @@ async function savePilot(tr) {
   const fd = new FormData();
   fd.append("bib", tr.querySelector(".e-bib").value);
   fd.append("name", tr.querySelector(".e-name").value);
+  fd.append("glider_brand", tr.querySelector(".e-glider-brand").value);
   fd.append("glider", tr.querySelector(".e-glider").value);
   fd.append("glider_class", tr.querySelector(".e-class").value);
   fd.append("aliases", tr.querySelector(".e-aliases").value);
@@ -288,6 +296,7 @@ $("p-bib").addEventListener("input", () => {
     (r) => String(r.bib || "").trim() === bib);
   if (track) {
     $("p-name").value = track.name || "";
+    $("p-glider-brand").value = track.glider_brand || "";
     $("p-glider").value = track.glider || "";
     if (track.glider_class) $("p-class").value = track.glider_class;
     setPilotHint("자동완성됨 · 별칭만 추가하세요");
@@ -302,6 +311,7 @@ $("p-bib").addEventListener("input", () => {
       if (seq !== bibSeq) return;
       if (pilot) {
         if (!$("p-name").value.trim()) $("p-name").value = pilot.name || "";
+        if (!$("p-glider-brand").value.trim()) $("p-glider-brand").value = pilot.glider_brand || "";
         if (!$("p-glider").value.trim()) $("p-glider").value = pilot.glider || "";
         if (!$("p-class").value) $("p-class").value = pilot.glider_class || "";
         setPilotHint("자동완성됨 · 별칭만 추가하세요");
@@ -318,6 +328,7 @@ $("pilot-form").addEventListener("submit", async (e) => {
   const fd = new FormData();
   fd.append("bib", $("p-bib").value);
   fd.append("name", $("p-name").value);
+  fd.append("glider_brand", $("p-glider-brand").value);
   fd.append("glider", $("p-glider").value);
   fd.append("glider_class", $("p-class").value);
   fd.append("aliases", $("p-aliases").value);
@@ -362,7 +373,7 @@ function renderLeagueStandings() {
     const cells = meets.map((m) => `<td class="num">${s.per_meet[m.id] != null ? s.per_meet[m.id] : "—"}</td>`).join("");
     const flag = s.registered ? "" : ` <span class="badge warn" title="로스터에 없는 선수">미등록</span>`;
     return `<tr${s.rank === 1 ? ' class="rank1"' : ''}><td class="rk">${s.rank}</td><td class="bib">${esc(s.bib) || "—"}</td>` +
-      `<td class="l">${esc(s.name)}${flag}</td><td class="l num">${esc(s.glider) || "—"}</td><td class="l num">${esc(s.glider_class) || "—"}</td>` +
+      `<td class="l">${esc(s.name)}${flag}</td><td class="l num">${esc(gliderText(s)) || "—"}</td><td class="l num">${esc(s.glider_class) || "—"}</td>` +
       `${cells}<td class="tot">${s.total}</td></tr>`;
   }).join("");
   const cols = meets.length + 6;
@@ -469,7 +480,7 @@ function renderMeetStandings() {
     const cells = tasks.map((t) => `<td class="num">${s.per_task[t.id] != null ? s.per_task[t.id] : "—"}</td>`).join("");
     const flag = s.registered ? "" : ` <span class="badge warn" title="로스터에 없는 선수">미등록</span>`;
     return `<tr${s.rank === 1 ? ' class="rank1"' : ''}><td class="rk">${s.rank}</td><td class="bib">${esc(s.bib) || "—"}</td>` +
-      `<td class="l">${esc(s.name)}${flag}</td><td class="l num">${esc(s.glider) || "—"}</td><td class="l num">${esc(s.glider_class) || "—"}</td>` +
+      `<td class="l">${esc(s.name)}${flag}</td><td class="l num">${esc(gliderText(s)) || "—"}</td><td class="l num">${esc(s.glider_class) || "—"}</td>` +
       `${cells}<td class="tot">${s.total}</td></tr>`;
   }).join("");
   const cols = tasks.length + 6;
@@ -591,6 +602,7 @@ async function showTask(taskId) {
       name: reg ? reg.name : p.name,
       bib: (reg && reg.bib) || p.bib,
       glider: (reg && reg.glider) || p.glider,
+      glider_brand: (reg && reg.glider_brand) || "",
       gclass: reg ? (reg.glider_class || "") : "",
     };
   });
@@ -609,7 +621,7 @@ async function showTask(taskId) {
     const flag = row.reg ? "" : ` <span class="badge warn" title="로스터에 없는 선수">미등록</span>`;
     return `<tr${row.rank === 1 ? ' class="rank1"' : ''}>
       <td class="rk">${row.rank}</td><td class="bib">${esc(row.bib) || "—"}</td>
-      <td class="l">${esc(row.name)}${flag}</td><td class="l num">${esc(row.glider) || "—"}</td>
+      <td class="l">${esc(row.name)}${flag}</td><td class="l num">${esc(gliderText(row)) || "—"}</td>
       <td class="l num">${esc(row.gclass) || "—"}</td>
       <td class="num">${p.distance_km} km</td><td>${status}</td>
       <td class="num">${durToHMS(p.ss_time)}</td>
@@ -625,7 +637,7 @@ async function showTask(taskId) {
     `<tr class="absent">
       <td class="rk">—</td><td class="bib">${esc(pl.bib) || "—"}</td>
       <td class="l">${esc(pl.name)} <span class="badge warn">미참가</span></td>
-      <td class="l num">${esc(pl.glider) || "—"}</td>
+      <td class="l num">${esc(gliderText(pl)) || "—"}</td>
       <td class="l num">${esc(pl.glider_class) || "—"}</td>
       <td class="num">—</td><td>—</td><td class="num">—</td>
       <td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="tot">—</td>

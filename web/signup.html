@@ -45,8 +45,10 @@
             <input id="pilot_name" type="text" placeholder="예: Song Daejin" /></label>
           <label>배번 <small class="field-hint">(있으면 정확히 매칭)</small>
             <input id="bib" type="text" placeholder="예: 001" /></label>
-          <label>기체 <small class="field-hint">(리그 참가 시 명단에 표시)</small>
-            <input id="glider" type="text" placeholder="예: OZONE Enzo 3" /></label>
+          <label>기체 브랜드 <small class="field-hint">(예: OZONE)</small>
+            <input id="glider_brand" type="text" placeholder="예: OZONE" /></label>
+          <label>날개명 <small class="field-hint">(예: Enzo 3)</small>
+            <input id="glider" type="text" placeholder="예: Enzo 3" /></label>
           <label>기체 등급 <small class="field-hint">(EN 등급 · 등급별 순위에 사용)</small>
             <select id="glider_class">
               <option value="">— 미지정 —</option>
@@ -108,6 +110,7 @@
         meta.pilot_name = val("pilot_name");
         meta.bib = val("bib");
         meta.glider = val("glider");
+        meta.glider_brand = val("glider_brand");
         meta.glider_class = val("glider_class");
         meta.contact = val("contact");
       }

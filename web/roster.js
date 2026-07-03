@@ -6,6 +6,11 @@ let editingPid = null;
 
 const $ = (id) => document.getElementById(id);
 const esc = SKORE.escapeHtml;
+// Combined wing display "브랜드 날개명" (either part may be empty).
+function gliderText(o) {
+  const b = (o.glider_brand || "").trim(), n = (o.glider || "").trim();
+  return b && n ? `${b} ${n}` : (b || n);
+}
 
 // EN class dropdown for inline editing (CCC/D/C/B/A + 미지정).
 function classSelect(current) {
@@ -70,7 +75,7 @@ function renderPending(list) {
     return `<tr data-pid="${r.pid}">
       <td class="bib">${esc(r.bib) || "—"}</td>
       <td class="l">${esc(r.name)}</td>
-      <td class="l num">${esc(r.glider) || "—"}</td>
+      <td class="l num">${esc(gliderText(r)) || "—"}</td>
       <td class="l num">${esc(r.glider_class) || "—"}</td>
       <td class="l num">${esc(r.contact) || "—"}</td>
       <td class="l num">${esc(r.account_email) || "—"}</td>
@@ -100,7 +105,7 @@ function viewRow(r) {
   return `<tr data-pid="${r.pid}">
     <td class="bib">${esc(r.bib) || "—"}</td>
     <td class="l">${esc(r.name)}${sourceTag(r)}</td>
-    <td class="l num">${esc(r.glider) || "—"}</td>
+    <td class="l num">${esc(gliderText(r)) || "—"}</td>
     <td class="l num">${esc(r.glider_class) || "—"}</td>
     <td class="l num">${esc(r.contact) || "—"}</td>
     <td class="l num">${esc(r.account_email) || "—"}</td>
@@ -116,7 +121,7 @@ function editRow(r) {
   return `<tr data-pid="${r.pid}" class="editing">
     <td class="bib"><input class="e-bib" type="text" value="${esc(r.bib)}" placeholder="배번" /></td>
     <td class="l"><input class="e-name" type="text" value="${esc(r.name)}" placeholder="이름" /></td>
-    <td class="l"><input class="e-glider" type="text" value="${esc(r.glider)}" placeholder="기체" /></td>
+    <td class="l"><input class="e-glider-brand" type="text" value="${esc(r.glider_brand)}" placeholder="브랜드" style="margin-bottom:4px" /><input class="e-glider" type="text" value="${esc(r.glider)}" placeholder="날개명" /></td>
     <td class="l">${classSelect(r.glider_class)}</td>
     <td class="l"><input class="e-contact" type="text" value="${esc(r.contact)}" placeholder="연락처" /></td>
     <td class="l num">${esc(r.account_email) || "—"}</td>
@@ -155,8 +160,9 @@ function wire(table) {
           const { pilot } = await res.json();
           if (!pilot || s !== seq) return;
           const fill = (sel, val) => { const el = tr.querySelector(sel); if (el && !el.value.trim()) el.value = val || ""; };
-          fill(".e-name", pilot.name); fill(".e-glider", pilot.glider);
-          fill(".e-class", pilot.glider_class); fill(".e-contact", pilot.contact);
+          fill(".e-name", pilot.name); fill(".e-glider-brand", pilot.glider_brand);
+          fill(".e-glider", pilot.glider); fill(".e-class", pilot.glider_class);
+          fill(".e-contact", pilot.contact);
         } catch {}
       }, 350);
     });
@@ -173,6 +179,7 @@ async function savePilot(pid, tr) {
   const fd = new FormData();
   fd.append("bib", tr.querySelector(".e-bib").value);
   fd.append("name", tr.querySelector(".e-name").value);
+  fd.append("glider_brand", tr.querySelector(".e-glider-brand").value);
   fd.append("glider", tr.querySelector(".e-glider").value);
   fd.append("glider_class", tr.querySelector(".e-class").value);
   fd.append("contact", tr.querySelector(".e-contact").value);

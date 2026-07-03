@@ -100,7 +100,7 @@ def get_league(league_id: str) -> dict | None:
         tasks = cur.fetchall()
         cur.execute(
             """
-            select id, uid, bib, name, glider, glider_class, aliases, contact, source, status
+            select id, uid, bib, name, glider, glider_brand, glider_class, aliases, contact, source, status
             from roster where league_id = %s::uuid order by created
             """,
             (league_id,),
@@ -125,6 +125,7 @@ def get_league(league_id: str) -> dict | None:
                 "bib": pl["bib"],
                 "name": pl["name"],
                 "glider": pl["glider"],
+                "glider_brand": pl["glider_brand"],
                 "glider_class": pl["glider_class"],
                 "aliases": pl["aliases"] or [],
                 "contact": pl["contact"],
@@ -250,6 +251,7 @@ def _row_to_pilot(r: dict) -> dict:
         "bib": r["bib"],
         "name": r["name"],
         "glider": r["glider"],
+        "glider_brand": r["glider_brand"],
         "glider_class": r["glider_class"],
         "aliases": r["aliases"] or [],
         "contact": r["contact"],
@@ -258,7 +260,9 @@ def _row_to_pilot(r: dict) -> dict:
     }
 
 
-_ROSTER_COLS = "id, uid, bib, name, glider, glider_class, aliases, contact, source, status"
+_ROSTER_COLS = (
+    "id, uid, bib, name, glider, glider_brand, glider_class, aliases, contact, source, status"
+)
 
 
 def add_pilot(
@@ -270,6 +274,7 @@ def add_pilot(
     *,
     uid: str | None = None,
     contact: str = "",
+    glider_brand: str = "",
     glider_class: str = "",
     source: str = "organizer",
     status: str = "approved",
@@ -281,12 +286,14 @@ def add_pilot(
             return None
         cur.execute(
             f"""
-            insert into roster (league_id, uid, bib, name, glider, glider_class, aliases, contact, source, status)
-            values (%s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, %s, %s)
+            insert into roster (league_id, uid, bib, name, glider, glider_brand, glider_class,
+                                aliases, contact, source, status)
+            values (%s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             returning {_ROSTER_COLS}
             """,
             (league_id, uid, (bib or "").strip(), (name or "").strip(), (glider or "").strip(),
-             (glider_class or "").strip(), Jsonb(alias_list), (contact or "").strip(), source, status),
+             (glider_brand or "").strip(), (glider_class or "").strip(), Jsonb(alias_list),
+             (contact or "").strip(), source, status),
         )
         return _row_to_pilot(cur.fetchone())
 
@@ -303,11 +310,11 @@ def lookup_pilot_by_bib(owner_id: str, bib: str) -> dict | None:
     with connect() as conn, conn.cursor() as cur:
         cur.execute(
             """
-            select pilot_name as name, glider, glider_class, '' as contact, created
+            select pilot_name as name, glider, glider_brand, glider_class, '' as contact, created
               from profiles
              where role = 'participant' and trim(bib) = %s
             union all
-            select r.name, r.glider, r.glider_class, r.contact, r.created
+            select r.name, r.glider, r.glider_brand, r.glider_class, r.contact, r.created
               from roster r join leagues l on l.id = r.league_id
              where l.owner_id = %s::uuid and trim(r.bib) = %s
             order by created desc
@@ -329,6 +336,7 @@ def lookup_pilot_by_bib(owner_id: str, bib: str) -> dict | None:
     return {
         "name": name,
         "glider": _first("glider"),
+        "glider_brand": _first("glider_brand"),
         "glider_class": _first("glider_class"),
         "contact": _first("contact"),
     }
@@ -336,7 +344,7 @@ def lookup_pilot_by_bib(owner_id: str, bib: str) -> dict | None:
 
 def update_pilot(league_id: str, pid: str, fields: dict) -> dict | None:
     sets, vals = [], []
-    for k in ("bib", "name", "glider", "glider_class", "contact"):
+    for k in ("bib", "name", "glider", "glider_brand", "glider_class", "contact"):
         if k in fields:
             sets.append(f"{k} = %s")
             vals.append((fields[k] or "").strip())
@@ -421,7 +429,7 @@ def _is_approved(pilot: dict) -> bool:
 
 def request_membership(
     league_id: str, uid: str, name: str, bib: str, glider: str, contact: str,
-    glider_class: str = "",
+    glider_brand: str = "", glider_class: str = "",
 ) -> dict | None:
     """Create a *pending* self-registration. Returns the new roster entry, or None if
     the league is missing / the user already has an entry in this league."""
@@ -436,7 +444,8 @@ def request_membership(
             return None  # already registered / requested
     return add_pilot(
         league_id, bib, name, glider, aliases=None,
-        uid=uid, contact=contact, glider_class=glider_class, source="self", status="pending",
+        uid=uid, contact=contact, glider_brand=glider_brand, glider_class=glider_class,
+        source="self", status="pending",
     )
 
 
@@ -510,13 +519,15 @@ def _resolve(row: dict, bib_idx, name_idx, roster) -> tuple[str, dict]:
         pl = roster[pid]
         return pid, {
             "pid": pid, "name": pl["name"], "bib": pl.get("bib"),
-            "glider": pl.get("glider"), "glider_class": pl.get("glider_class") or None,
+            "glider": pl.get("glider"), "glider_brand": pl.get("glider_brand") or "",
+            "glider_class": pl.get("glider_class") or None,
             "registered": True,
         }
     key = "name::" + _norm(row.get("name"))
     return key, {
         "pid": None, "name": row.get("name") or "(이름없음)", "bib": row.get("bib"),
-        "glider": row.get("glider"), "glider_class": None, "registered": False,
+        "glider": row.get("glider"), "glider_brand": "", "glider_class": None,
+        "registered": False,
     }
 
 
@@ -568,7 +579,7 @@ def league_standings(league: dict) -> list[dict]:
         for key, p in _meet_totals(meet, bib_idx, name_idx, roster).items():
             a = agg.setdefault(
                 key,
-                {k: p[k] for k in ("pid", "name", "bib", "glider", "glider_class", "registered")}
+                {k: p[k] for k in ("pid", "name", "bib", "glider", "glider_brand", "glider_class", "registered")}
                 | {"total": 0.0, "per_meet": {}},
             )
             a["per_meet"][mid] = p["total"]

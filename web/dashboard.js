@@ -14,7 +14,8 @@ const $ = (id) => document.getElementById(id);
   const esc = SKORE.escapeHtml;
   const parts = [`매칭 기준: <b>${esc(user.pilot_name || user.display_name)}</b>`];
   if (user.bib) parts.push(`배번 ${esc(user.bib)}`);
-  if (user.glider) parts.push(`기체 ${esc(user.glider)}`);
+  const gtext = [user.glider_brand, user.glider].map((s) => (s || "").trim()).filter(Boolean).join(" ");
+  if (gtext) parts.push(`기체 ${esc(gtext)}`);
   if (user.glider_class) parts.push(`등급 ${esc(user.glider_class)}`);
   if (user.contact) parts.push(`연락처 ${esc(user.contact)}`);
   $("profile-line").innerHTML =
@@ -107,7 +108,9 @@ function editProfile(user) {
   if (name === null) return;
   const bib = prompt("배번 (없으면 비움)", user.bib || "");
   if (bib === null) return;
-  const glider = prompt("기체 (없으면 비움)", user.glider || "");
+  const gliderBrand = prompt("기체 브랜드 (예: OZONE, 없으면 비움)", user.glider_brand || "");
+  if (gliderBrand === null) return;
+  const glider = prompt("날개명 (예: Enzo 3, 없으면 비움)", user.glider || "");
   if (glider === null) return;
   let gclass = prompt("기체 등급 — CCC / D / C / B / A (없으면 비움)", user.glider_class || "");
   if (gclass === null) return;
@@ -120,6 +123,7 @@ function editProfile(user) {
   const fd = new FormData();
   fd.append("pilot_name", name);
   fd.append("bib", bib);
+  fd.append("glider_brand", gliderBrand);
   fd.append("glider", glider);
   fd.append("glider_class", gclass);
   fd.append("contact", contact);

@@ -56,6 +56,7 @@ def update_profile_endpoint(
     bib: str = Form(None),
     display_name: str = Form(None),
     glider: str = Form(None),
+    glider_brand: str = Form(None),
     contact: str = Form(None),
     glider_class: str = Form(None),
     user: dict = Depends(auth.require_user),
@@ -64,7 +65,8 @@ def update_profile_endpoint(
     fields: dict = {}
     for key, val in (
         ("pilot_name", pilot_name), ("bib", bib), ("display_name", display_name),
-        ("glider", glider), ("contact", contact), ("glider_class", glider_class),
+        ("glider", glider), ("glider_brand", glider_brand),
+        ("contact", contact), ("glider_class", glider_class),
     ):
         if val is not None:
             fields[key] = val
@@ -487,13 +489,17 @@ async def add_pilot_endpoint(
     bib: str = Form(""),
     name: str = Form(""),
     glider: str = Form(""),
+    glider_brand: str = Form(""),
     glider_class: str = Form(""),
     aliases: str = Form(""),
     user: dict = Depends(auth.require_organizer),
 ) -> dict:
     auth.require_owner(league_id, user)
     alias_list = list((aliases or "").split(","))
-    pilot = store.add_pilot(league_id, bib, name, glider, alias_list, glider_class=glider_class)
+    pilot = store.add_pilot(
+        league_id, bib, name, glider, alias_list,
+        glider_brand=glider_brand, glider_class=glider_class,
+    )
     if pilot is None:
         raise HTTPException(status_code=404, detail="League not found")
     return {"pilot": pilot}
@@ -506,6 +512,7 @@ async def update_pilot_endpoint(
     bib: str = Form(None),
     name: str = Form(None),
     glider: str = Form(None),
+    glider_brand: str = Form(None),
     glider_class: str = Form(None),
     contact: str = Form(None),
     aliases: str = Form(None),
@@ -519,6 +526,8 @@ async def update_pilot_endpoint(
         fields["name"] = name
     if glider is not None:
         fields["glider"] = glider
+    if glider_brand is not None:
+        fields["glider_brand"] = glider_brand
     if glider_class is not None:
         fields["glider_class"] = glider_class
     if contact is not None:
@@ -590,6 +599,7 @@ def register_for_league_endpoint(
         bib=user.get("bib", ""),
         glider=user.get("glider", ""),
         contact=user.get("contact", ""),
+        glider_brand=user.get("glider_brand", ""),
         glider_class=user.get("glider_class", ""),
     )
     if pilot is None:

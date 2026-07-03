@@ -10,7 +10,10 @@ from __future__ import annotations
 
 from .db import connect
 
-_COLS = "id, email, display_name, role, status, pilot_name, bib, glider, glider_class, contact"
+_COLS = (
+    "id, email, display_name, role, status, "
+    "pilot_name, bib, glider, glider_brand, glider_class, contact"
+)
 
 
 def get_profile(uid: str) -> dict | None:
@@ -58,7 +61,7 @@ def promote_to_organizer(uid: str) -> dict | None:
 
 
 def update_profile(uid: str, fields: dict) -> dict | None:
-    cols = ("display_name", "pilot_name", "bib", "glider", "glider_class", "contact")
+    cols = ("display_name", "pilot_name", "bib", "glider", "glider_brand", "glider_class", "contact")
     sets, vals = [], []
     for k in cols:
         if k in fields and fields[k] is not None:
@@ -85,6 +88,7 @@ def _row(r: dict) -> dict:
         "pilot_name": r["pilot_name"],
         "bib": r["bib"],
         "glider": r["glider"],
+        "glider_brand": r["glider_brand"],
         "glider_class": r["glider_class"],
         "contact": r["contact"],
     }
