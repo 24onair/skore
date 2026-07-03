@@ -456,17 +456,50 @@ $("back-to-league").addEventListener("click", () => {
 
 function renderMeet() {
   $("meet-title").textContent = meet.name;
+  $("meet-edit-form").hidden = true;
   const p = meet.params;
   $("meet-params").innerHTML = [
     ["Nom.dist", `${p.nominal_distance / 1000} km`],
     ["Nom.time", `${Math.round(p.nominal_time / 60)} 분`],
     ["Nom.launch", p.nominal_launch],
+    ["Nom.goal", p.nominal_goal],
     ["Min.dist", `${p.min_distance / 1000} km`],
+    ["LTR", p.leading_time_ratio],
     ["타스크", `${meet.tasks.length}개`],
   ].map(([k, v]) => `<div class="chip">${k} <b>${v}</b></div>`).join("");
   renderMeetStandings();
   renderTaskList();
 }
+
+// --- edit meet scoring params (applies to tasks scored afterwards) ----------
+$("meet-edit-btn").addEventListener("click", () => {
+  const f = $("meet-edit-form");
+  if (f.hidden && meet) {
+    const p = meet.params || {};
+    $("me-nomdist").value = (p.nominal_distance ?? 30000) / 1000;
+    $("me-nomtime").value = Math.round((p.nominal_time ?? 5400) / 60);
+    $("me-nomlaunch").value = p.nominal_launch ?? 0.96;
+    $("me-nomgoal").value = p.nominal_goal ?? 0.25;
+    $("me-mindist").value = (p.min_distance ?? 7000) / 1000;
+    $("me-ltr").value = p.leading_time_ratio ?? 0.26;
+  }
+  f.hidden = !f.hidden;
+});
+$("meet-edit-cancel").addEventListener("click", () => { $("meet-edit-form").hidden = true; });
+$("meet-edit-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!league || !meet) return;
+  const fd = new FormData();
+  fd.append("nominal_distance", String(Number($("me-nomdist").value) * 1000));
+  fd.append("nominal_time", String(Number($("me-nomtime").value) * 60));
+  fd.append("nominal_launch", String(Number($("me-nomlaunch").value) || 0));
+  fd.append("nominal_goal", String(Number($("me-nomgoal").value) || 0.25));
+  fd.append("min_distance", String(Number($("me-mindist").value) * 1000));
+  fd.append("leading_time_ratio", String(Number($("me-ltr").value) || 0.26));
+  const res = await SKORE.api(`/api/leagues/${league.id}/meets/${meet.id}`, { method: "PATCH", body: fd });
+  if (res.ok) { await openMeet(meet.id); }          // refresh chips
+  else { alert("저장 실패"); }
+});
 
 // --- meet standings (columns = tasks) ---------------------------------------
 function renderMeetStandings() {

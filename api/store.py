@@ -183,6 +183,40 @@ def add_meet(league_id: str, name: str, params: dict | None) -> dict | None:
             "params": m["params"] or {}, "tasks": []}
 
 
+def update_meet(
+    league_id: str, meet_id: str, name: str | None = None, params: dict | None = None
+) -> dict | None:
+    """Update a meet's name and/or scoring params. Returns the updated meet (id/name/
+    params/created), or None if it doesn't exist."""
+    sets, vals = [], []
+    if name is not None:
+        sets.append("name = %s")
+        vals.append(name)
+    if params is not None:
+        sets.append("params = %s")
+        vals.append(Jsonb(params))
+    with connect() as conn, conn.cursor() as cur:
+        if sets:
+            vals += [meet_id, league_id]
+            cur.execute(
+                f"update meets set {', '.join(sets)} "
+                f"where id = %s::uuid and league_id = %s::uuid "
+                f"returning id, name, params, created",
+                vals,
+            )
+        else:
+            cur.execute(
+                "select id, name, params, created from meets "
+                "where id = %s::uuid and league_id = %s::uuid",
+                (meet_id, league_id),
+            )
+        m = cur.fetchone()
+    if m is None:
+        return None
+    return {"id": str(m["id"]), "name": m["name"], "created": _iso(m["created"]),
+            "params": m["params"] or {}}
+
+
 def get_meet(league: dict, meet_id: str) -> dict | None:
     return next((m for m in league.get("meets", []) if m["id"] == meet_id), None)
 

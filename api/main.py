@@ -398,6 +398,40 @@ async def create_meet_endpoint(
     return {"meet": meet}
 
 
+@app.patch("/api/leagues/{league_id}/meets/{meet_id}")
+async def update_meet_endpoint(
+    league_id: str,
+    meet_id: str,
+    name: str = Form(None),
+    nominal_distance: float = Form(None),
+    nominal_time: float = Form(None),
+    nominal_launch: float = Form(None),
+    nominal_goal: float = Form(None),
+    min_distance: float = Form(None),
+    leading_time_ratio: float = Form(None),
+    leading_points: bool = Form(None),
+    user: dict = Depends(auth.require_organizer),
+) -> dict:
+    """Edit a meet's scoring params (and/or name). Applies to tasks scored afterwards;
+    already-scored tasks keep their snapshot (re-score by deleting + re-adding)."""
+    league = auth.require_owner(league_id, user)
+    meet = store.get_meet(league, meet_id)
+    if meet is None:
+        raise HTTPException(status_code=404, detail="Meet not found")
+    base = dict(meet.get("params", {}))
+    overrides = {
+        "nominal_distance": nominal_distance, "nominal_time": nominal_time,
+        "nominal_launch": nominal_launch, "nominal_goal": nominal_goal,
+        "min_distance": min_distance, "leading_time_ratio": leading_time_ratio,
+        "leading_points": leading_points,
+    }
+    base.update({k: v for k, v in overrides.items() if v is not None})
+    updated = store.update_meet(league_id, meet_id, name=name, params=base)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Meet not found")
+    return {"meet": updated}
+
+
 @app.get("/api/leagues/{league_id}/meets/{meet_id}")
 def get_meet_endpoint(league_id: str, meet_id: str) -> dict:
     league = _require_league(league_id)

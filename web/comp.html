@@ -125,6 +125,22 @@
       <button type="button" id="back-to-league" class="rowbtn edit" style="margin-bottom:12px">← 리그 종합</button>
       <h2 id="meet-title"></h2>
       <div class="dq" id="meet-params"></div>
+      <button type="button" id="meet-edit-btn" class="ghost" style="margin:0 0 10px">채점값 수정</button>
+      <form id="meet-edit-form" hidden style="margin:0 0 14px">
+        <div class="grid2">
+          <label class="field"><span>Nom. dist (km)</span><input id="me-nomdist" type="number" min="1" /></label>
+          <label class="field"><span>Nom. time (분)</span><input id="me-nomtime" type="number" min="1" /></label>
+          <label class="field"><span>Nom. launch</span><input id="me-nomlaunch" type="number" min="0" max="1" step="0.01" /></label>
+          <label class="field"><span>Nom. goal</span><input id="me-nomgoal" type="number" min="0" max="1" step="0.01" /></label>
+          <label class="field"><span>Min dist (km)</span><input id="me-mindist" type="number" min="0" step="0.5" /></label>
+          <label class="field"><span>LTR</span><input id="me-ltr" type="number" min="0" max="0.5" step="0.01" /></label>
+        </div>
+        <p class="field-hint" style="margin:8px 0 0">이미 채점된 타스크에는 소급 적용되지 않습니다 — 반영하려면 타스크를 삭제 후 다시 추가하세요.</p>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button type="submit" class="btn primary">저장</button>
+          <button type="button" id="meet-edit-cancel" class="btn secondary">취소</button>
+        </div>
+      </form>
 
       <div class="roster-head">
         <h3>차전 종합 순위 <small id="meet-standings-note" class="muted"></small></h3>
