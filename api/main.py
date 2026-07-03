@@ -631,6 +631,57 @@ def reject_registration_endpoint(
     return {"registration": _registration_view(pl)}
 
 
+# --- platform admin (super-admin) ------------------------------------------ #
+@app.get("/api/admin/organizers")
+def admin_list_organizers(user: dict = Depends(auth.require_admin)) -> dict:
+    """Organizer accounts awaiting (or past) approval, newest first."""
+    return {"organizers": [profiles.public(p) for p in profiles.list_by(role="organizer")]}
+
+
+@app.post("/api/admin/organizers/{uid}/approve")
+def admin_approve_organizer(uid: str, user: dict = Depends(auth.require_admin)) -> dict:
+    p = profiles.set_status(uid, "active")
+    if p is None:
+        raise HTTPException(status_code=404, detail="계정을 찾을 수 없습니다.")
+    return {"organizer": profiles.public(p)}
+
+
+@app.post("/api/admin/organizers/{uid}/reject")
+def admin_reject_organizer(uid: str, user: dict = Depends(auth.require_admin)) -> dict:
+    p = profiles.set_status(uid, "rejected")
+    if p is None:
+        raise HTTPException(status_code=404, detail="계정을 찾을 수 없습니다.")
+    return {"organizer": profiles.public(p)}
+
+
+@app.get("/api/admin/leagues")
+def admin_list_leagues(user: dict = Depends(auth.require_admin)) -> dict:
+    """Every league with its owner's email (super-admin oversight)."""
+    out = []
+    for lg in store.list_leagues():
+        owner = profiles.get_profile(lg["owner_id"]) if lg.get("owner_id") else None
+        out.append({**lg, "owner_email": owner.get("email") if owner else None})
+    return {"leagues": out}
+
+
+@app.post("/api/admin/leagues/{league_id}/transfer-owner")
+def admin_transfer_owner(
+    league_id: str, payload: dict = Body(...), user: dict = Depends(auth.require_admin)
+) -> dict:
+    """Hand a league's manager role to one of its participating pilots. The target must
+    be a roster member with a linked account; they are promoted to active organizer."""
+    league = _require_league(league_id)
+    target = (payload.get("uid") or "").strip()
+    if not target:
+        raise HTTPException(status_code=422, detail="대상 선수를 선택하세요.")
+    roster_uids = {pl.get("uid") for pl in league.get("roster", []) if pl.get("uid")}
+    if target not in roster_uids:
+        raise HTTPException(status_code=400, detail="그 리그에 참가한 선수만 운영자로 지정할 수 있습니다.")
+    store.set_league_owner(league_id, target)
+    profiles.promote_to_organizer(target)
+    return {"league_id": league_id, "owner_id": target}
+
+
 # --- static UI -------------------------------------------------------------- #
 if WEB_DIR.is_dir():
     @app.get("/")

@@ -172,6 +172,9 @@ async function deletePilot(pid) {
 (async () => {
   const user = await SKORE.renderAuthNav($("authbar"), { style: "panel" });
   if (!user) { location.href = "/login.html"; return; }
-  if (user.role !== "organizer") { location.href = SKORE.home(user); return; }
+  if (user.role === "participant") { location.href = SKORE.home(user); return; }
+  if (user.role === "organizer" && user.status !== "active") {
+    location.href = "/login.html?pending=1"; return;
+  }
   loadLeagues();
 })();

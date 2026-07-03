@@ -67,6 +67,13 @@ def _token_from_header(authorization: str | None) -> str | None:
     return None
 
 
+def _admin_emails() -> set[str]:
+    """Emails (comma-separated ``ADMIN_EMAILS`` env) elevated to admin at request
+    time — a lock-out-proof escape hatch that doesn't depend on the DB row."""
+    raw = os.environ.get("ADMIN_EMAILS", "")
+    return {e.strip().lower() for e in raw.split(",") if e.strip()}
+
+
 # --------------------------------------------------------------------------- #
 # FastAPI dependencies
 # --------------------------------------------------------------------------- #
@@ -78,7 +85,11 @@ def current_user(authorization: str | None = Header(default=None)) -> dict | Non
     claims = verify_token(token)
     if not claims:
         return None
-    return profiles.get_profile(claims["uid"])
+    profile = profiles.get_profile(claims["uid"])
+    # Env allowlist wins over the DB row, so an admin can never lock themselves out.
+    if profile and (profile.get("email") or "").lower() in _admin_emails():
+        profile = {**profile, "role": "admin", "status": "active"}
+    return profile
 
 
 def require_user(authorization: str | None = Header(default=None)) -> dict:
@@ -88,10 +99,26 @@ def require_user(authorization: str | None = Header(default=None)) -> dict:
     return user
 
 
-def require_organizer(authorization: str | None = Header(default=None)) -> dict:
+def require_admin(authorization: str | None = Header(default=None)) -> dict:
     user = require_user(authorization)
-    if user.get("role") != "organizer":
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="플랫폼 관리자만 사용할 수 있습니다.")
+    return user
+
+
+def require_organizer(authorization: str | None = Header(default=None)) -> dict:
+    """Organizer-only actions. Admins pass through; a self-registered organizer whose
+    account is still ``pending`` is blocked until a super-admin approves them."""
+    user = require_user(authorization)
+    role = user.get("role")
+    if role == "admin":
+        return user
+    if role != "organizer":
         raise HTTPException(status_code=403, detail="대회운영자만 사용할 수 있습니다.")
+    if user.get("status") != "active":
+        raise HTTPException(
+            status_code=403, detail="운영자 계정이 승인 대기 중입니다. 관리자 승인 후 이용할 수 있습니다."
+        )
     return user
 
 
@@ -103,10 +130,13 @@ def require_participant(authorization: str | None = Header(default=None)) -> dic
 
 
 def require_owner(league_id: str, user: dict) -> dict:
-    """Ensure ``user`` owns ``league_id``; returns the assembled league dict."""
+    """Ensure ``user`` owns ``league_id``; returns the assembled league dict.
+    Admins bypass ownership (they oversee every league)."""
     league = store.get_league(league_id)
     if league is None:
         raise HTTPException(status_code=404, detail="League not found")
+    if user.get("role") == "admin":
+        return league
     owner = league.get("owner_id")
     if owner is None:
         raise HTTPException(status_code=403, detail="소유자가 지정되지 않은 리그입니다(읽기 전용).")

@@ -85,8 +85,14 @@ const SKORE = (() => {
     return await file.text();
   }
 
-  const roleLabel = (r) => (r === "organizer" ? "운영자" : "참가자");
-  const home = (u) => (!u ? "/" : u.role === "organizer" ? "/comp.html" : "/dashboard.html");
+  const roleLabel = (r) =>
+    r === "admin" ? "관리자" : r === "organizer" ? "운영자" : "참가자";
+  const home = (u) => {
+    if (!u) return "/";
+    if (u.role === "admin") return "/admin.html";
+    if (u.role === "organizer") return "/comp.html";
+    return "/dashboard.html";
+  };
 
   /* Render login/signup or user+logout into a container.
      style: "nav" (landing top bar) | "panel" (app sidebar). */

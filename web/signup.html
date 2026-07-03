@@ -39,6 +39,8 @@
         <label>이름<input id="display_name" type="text" autocomplete="name" required /></label>
 
         <div id="pilot-fields" style="display:none;flex-direction:column;gap:14px">
+          <label>참가할 리그 <small style="color:var(--low)">(운영자 승인 후 명단 등록 · 나중에 선택 가능)</small>
+            <select id="join_league"><option value="">— 나중에 선택 —</option></select></label>
           <label>트랙 표기 이름 <small style="color:var(--low)">(IGC에 찍히는 이름, 비우면 위 이름 사용)</small>
             <input id="pilot_name" type="text" placeholder="예: Song Daejin" /></label>
           <label>배번 <small style="color:var(--low)">(있으면 정확히 매칭)</small>
@@ -73,6 +75,19 @@
     let role = "organizer";
     const err = document.getElementById("err");
     const pilotFields = document.getElementById("pilot-fields");
+
+    // Populate the "join a league" dropdown so a pilot can pick one at signup.
+    (async () => {
+      try {
+        const { leagues } = await (await SKORE.api("/api/leagues")).json();
+        const sel = document.getElementById("join_league");
+        for (const l of leagues) {
+          const o = document.createElement("option");
+          o.value = l.id; o.textContent = l.name;
+          sel.appendChild(o);
+        }
+      } catch {}
+    })();
     document.querySelectorAll(".role-opt").forEach((opt) => {
       opt.addEventListener("click", () => {
         document.querySelectorAll(".role-opt").forEach((o) => o.classList.remove("active"));
@@ -98,12 +113,17 @@
       }
       try {
         await SKORE.signup(val("email"), val("password"), meta);
-        const u = await SKORE.me();
-        if (u) {
-          location.href = SKORE.home(u);        // auto-confirm on → session ready
-        } else {
-          location.href = "/login.html?confirm=1"; // email confirmation required
+        const u = await SKORE.me();               // null if email confirmation required
+        if (!u) { location.href = "/login.html?confirm=1"; return; }
+        if (u.role === "organizer") {
+          location.href = "/login.html?pending=1"; return;  // 관리자 승인 대기
         }
+        // participant: if a league was picked, request to join it now (pending)
+        const lid = val("join_league");
+        if (lid) {
+          try { await SKORE.api(`/api/leagues/${lid}/register`, { method: "POST" }); } catch {}
+        }
+        location.href = SKORE.home(u);            // → dashboard
       } catch (ex) {
         err.textContent = ex.message; err.hidden = false;
         btn.disabled = false; btn.textContent = "가입하기";

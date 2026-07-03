@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SKORE — 플랫폼 관리</title>
+  <link rel="icon" type="image/svg+xml" href="/SKORE-appicon.svg" />
+  <link rel="apple-touch-icon" href="/SKORE-appicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <aside id="panel">
+    <a href="/" class="brand" style="margin-bottom:2px">
+      <svg viewBox="0 0 32 32" width="24" height="24" fill="none" aria-hidden="true">
+        <path d="M16 27.33C5.33 27.33 5.33 17.33 16 17.33C24.67 17.33 24.67 9.33 16 9.33C10 9.33 10 4.67 16 4.67"
+              stroke="#3D9DFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="16" cy="4.67" r="2.33" fill="#F4B740"/>
+      </svg>
+      <span class="wm">SK<b>O</b>RE</span>
+    </a>
+    <nav class="nav">
+      <a href="/admin.html" class="active">플랫폼 관리</a>
+      <a href="/comp.html">리그 채점</a>
+    </nav>
+    <div class="panel-auth" id="authbar"></div>
+    <h1>플랫폼 관리<br /><small>운영자 계정 승인 · 전체 리그 관리</small></h1>
+    <div id="status" class="muted"></div>
+  </aside>
+
+  <div id="main">
+    <div class="roster-head">
+      <h3>운영자 계정 승인 <small id="org-count" class="muted"></small></h3>
+    </div>
+    <div class="tablewrap"><table class="rank" id="org-table"></table></div>
+
+    <div class="roster-head" style="margin-top:26px">
+      <h3>전체 리그 <small id="league-count" class="muted"></small></h3>
+    </div>
+    <div class="tablewrap"><table class="rank" id="league-table"></table></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
+  <script src="/auth.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

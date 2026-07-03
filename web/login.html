@@ -40,9 +40,21 @@
   <script src="/config.js"></script>
   <script src="/auth.js"></script>
   <script>
-    SKORE.me().then((u) => { if (u) location.href = SKORE.home(u); });
     const err = document.getElementById("err");
-    if (new URLSearchParams(location.search).has("confirm")) {
+    const params = new URLSearchParams(location.search);
+    const isPending = (u) => u && u.role === "organizer" && u.status !== "active";
+    function showPending() {
+      err.textContent = "운영자 계정이 승인 대기 중입니다. 플랫폼 관리자 승인 후 리그를 만들 수 있습니다.";
+      err.hidden = false;
+    }
+    // A pending organizer stays here (with a banner) instead of bouncing to comp.html.
+    SKORE.me().then((u) => {
+      if (!u) return;
+      if (isPending(u)) { showPending(); return; }
+      location.href = SKORE.home(u);
+    });
+    if (params.has("pending")) showPending();
+    if (params.has("confirm")) {
       err.textContent = "가입이 접수되었습니다. 이메일의 확인 링크를 누른 뒤 로그인하세요.";
       err.hidden = false;
     }
@@ -56,7 +68,9 @@
           document.getElementById("email").value,
           document.getElementById("password").value,
         );
-        location.href = SKORE.home(await SKORE.me());
+        const u = await SKORE.me();
+        if (isPending(u)) { showPending(); btn.disabled = false; btn.textContent = "로그인"; return; }
+        location.href = SKORE.home(u);
       } catch (ex) {
         err.textContent = ex.message; err.hidden = false;
         btn.disabled = false; btn.textContent = "로그인";
