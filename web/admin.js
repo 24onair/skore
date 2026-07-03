@@ -20,7 +20,7 @@ async function loadOrganizers() {
   }[s] || esc(s));
   const head = `<thead><tr><th class="l">이름</th><th class="l">이메일</th><th class="l">상태</th><th></th></tr></thead>`;
   if (!organizers.length) {
-    $("org-table").innerHTML = head + `<tbody><tr><td colspan="4" class="muted" style="padding:10px">운영자 계정이 없습니다.</td></tr></tbody>`;
+    $("org-table").innerHTML = head + `<tbody><tr><td colspan="4" class="muted empty-cell">운영자 계정이 없습니다.</td></tr></tbody>`;
     return;
   }
   const body = organizers.map((o) => {
@@ -65,7 +65,7 @@ async function loadLeagues() {
 function render(openId) {
   const head = `<thead><tr><th class="l">리그</th><th class="l">운영자</th><th class="l">차전</th><th></th></tr></thead>`;
   if (!leagues.length) {
-    $("league-table").innerHTML = head + `<tbody><tr><td colspan="4" class="muted" style="padding:10px">리그가 없습니다.</td></tr></tbody>`;
+    $("league-table").innerHTML = head + `<tbody><tr><td colspan="4" class="muted empty-cell">리그가 없습니다.</td></tr></tbody>`;
     return;
   }
   const body = leagues.map((l) => {
@@ -75,12 +75,12 @@ function render(openId) {
       <td class="l num">${l.meet_count != null ? l.meet_count + "차전" : "—"}</td>
       <td class="actions"><button class="rowbtn edit" data-transfer="${l.id}">운영자 변경</button></td></tr>`;
     const panel = l.id === openId
-      ? `<tr class="transfer-row"><td colspan="4" style="padding:10px 8px">
-           <span class="muted" style="margin-right:8px">이 리그 참가 선수 중 새 운영자 선택:</span>
+      ? `<tr class="transfer-row"><td colspan="4" class="transfer-panel">
+           <span class="muted lbl">이 리그 참가 선수 중 새 운영자 선택:</span>
            <select id="tr-sel-${l.id}"></select>
            <button class="rowbtn save" data-apply="${l.id}">적용</button>
            <button class="rowbtn" data-cancel="1">취소</button>
-           <span id="tr-msg-${l.id}" class="muted" style="margin-left:8px"></span></td></tr>`
+           <span id="tr-msg-${l.id}" class="muted msg"></span></td></tr>`
       : "";
     return row + panel;
   }).join("");

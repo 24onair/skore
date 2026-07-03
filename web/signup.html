@@ -35,19 +35,19 @@
         </div>
 
         <label>이메일<input id="email" type="email" autocomplete="email" required /></label>
-        <label>비밀번호 <small style="color:var(--low)">(6자 이상)</small><input id="password" type="password" autocomplete="new-password" minlength="6" required /></label>
+        <label>비밀번호 <small class="field-hint">(6자 이상)</small><input id="password" type="password" autocomplete="new-password" minlength="6" required /></label>
         <label>이름<input id="display_name" type="text" autocomplete="name" required /></label>
 
-        <div id="pilot-fields" style="display:none;flex-direction:column;gap:14px">
-          <label>참가할 리그 <small style="color:var(--low)">(운영자 승인 후 명단 등록 · 나중에 선택 가능)</small>
+        <div id="pilot-fields" class="pilot-section" style="display:none">
+          <label>참가할 리그 <small class="field-hint">(운영자 승인 후 명단 등록 · 나중에 선택 가능)</small>
             <select id="join_league"><option value="">— 나중에 선택 —</option></select></label>
-          <label>트랙 표기 이름 <small style="color:var(--low)">(IGC에 찍히는 이름, 비우면 위 이름 사용)</small>
+          <label>트랙 표기 이름 <small class="field-hint">(IGC에 찍히는 이름, 비우면 위 이름 사용)</small>
             <input id="pilot_name" type="text" placeholder="예: Song Daejin" /></label>
-          <label>배번 <small style="color:var(--low)">(있으면 정확히 매칭)</small>
+          <label>배번 <small class="field-hint">(있으면 정확히 매칭)</small>
             <input id="bib" type="text" placeholder="예: 001" /></label>
-          <label>기체 <small style="color:var(--low)">(리그 참가 시 명단에 표시)</small>
+          <label>기체 <small class="field-hint">(리그 참가 시 명단에 표시)</small>
             <input id="glider" type="text" placeholder="예: OZONE Enzo 3" /></label>
-          <label>기체 등급 <small style="color:var(--low)">(EN 등급 · 등급별 순위에 사용)</small>
+          <label>기체 등급 <small class="field-hint">(EN 등급 · 등급별 순위에 사용)</small>
             <select id="glider_class">
               <option value="">— 미지정 —</option>
               <option value="CCC">CCC</option>
@@ -56,7 +56,7 @@
               <option value="B">EN-B</option>
               <option value="A">EN-A</option>
             </select></label>
-          <label>연락처 <small style="color:var(--low)">(운영자에게만 표시)</small>
+          <label>연락처 <small class="field-hint">(운영자에게만 표시)</small>
             <input id="contact" type="text" autocomplete="tel" placeholder="예: 010-1234-5678" /></label>
         </div>
 

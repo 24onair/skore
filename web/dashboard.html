@@ -24,26 +24,28 @@
     <div class="authbar" id="authbar"></div>
   </nav>
 
-  <main class="lp" style="padding-top:8px">
-    <header style="margin:18px 0 8px">
-      <div class="kicker" style="font-family:var(--font-mono);font-size:12px;letter-spacing:.18em;color:var(--low);text-transform:uppercase">My Results</div>
-      <h1 id="hello" style="font-family:var(--font-display);font-size:30px;margin:8px 0 0"></h1>
-      <p class="muted" id="profile-line" style="margin:8px 0 0"></p>
+  <main class="lp">
+    <header class="section">
+      <div class="kicker">My Results</div>
+      <h1 id="hello" class="page-title"></h1>
+      <p class="muted" id="profile-line"></p>
     </header>
 
-    <section style="margin-top:26px">
-      <h2 style="font-family:var(--font-display);font-size:20px;margin:0 0 4px">리그 참가</h2>
-      <p class="muted" style="margin:0 0 12px;font-size:13px">참가할 리그에 신청하면 운영자 승인 후 등록 선수 명단에 오릅니다.</p>
+    <section class="section">
+      <h2 class="section-title">리그 참가</h2>
+      <p class="muted">참가할 리그에 신청하면 운영자 승인 후 등록 선수 명단에 오릅니다.</p>
       <div id="join-list" class="join-list"></div>
     </section>
 
-    <div id="empty" class="muted" hidden style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:18px">
+    <div id="empty" class="muted card section" hidden>
       아직 매칭된 기록이 없습니다. 가입 시 입력한 <b>이름·배번</b>이 대회 로스터의 표기와 일치하는지 확인하세요.
       운영자가 트랙을 채점하면 여기에 자동으로 표시됩니다.
     </div>
 
-    <h2 style="font-family:var(--font-display);font-size:20px;margin:28px 0 4px">내 성적</h2>
-    <div id="cards" class="my-cards" style="margin-top:12px"></div>
+    <section class="section">
+      <h2 class="section-title">내 성적</h2>
+      <div id="cards" class="my-cards"></div>
+    </section>
   </main>
 
   <footer class="lp-foot">

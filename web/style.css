@@ -48,6 +48,15 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: v
 
 .muted { color: var(--muted); font-size: 13px; line-height: 1.5; }
 
+/* --- shared utilities (kill inline styles) --- */
+h3 { font-size: 15px; font-weight: 700; margin: 0 0 8px; color: var(--text); }
+.section { margin-top: 26px; }
+.kicker { font-family: var(--font-mono); font-size: 12px; letter-spacing: .18em; color: var(--low); text-transform: uppercase; }
+.field-hint { color: var(--low); font-size: 12px; font-weight: 400; }
+.page-title { font-family: var(--font-display); font-size: 30px; font-weight: 700; margin: 8px 0 0; letter-spacing: -.01em; }
+.section-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin: 0 0 4px; color: var(--text); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+
 #form { display: flex; flex-direction: column; gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
 .field input[type=file] {
@@ -140,7 +149,19 @@ button.ghost {
   border-radius: 8px; padding: 9px; font-size: 13px; cursor: pointer;
 }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.tablewrap { overflow-x: auto; }
+/* Horizontal-scroll affordance: right-edge shadow appears when a table overflows. */
+.tablewrap {
+  overflow-x: auto;
+  background:
+    radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.5), transparent) 100% 0 / 16px 100% no-repeat,
+    linear-gradient(90deg, transparent, var(--bg) 90%) 100% 0 / 40px 100% no-repeat;
+  background-attachment: scroll, local;
+}
+/* admin console: owner-transfer inline panel + empty table cell */
+.transfer-panel { padding: 10px 8px; }
+.transfer-panel .lbl { margin-right: 8px; }
+.transfer-panel .msg { margin-left: 8px; }
+.empty-cell { padding: 10px; }
 .tasklist { display: flex; flex-direction: column; gap: 8px; }
 .meet-row { display: flex; align-items: stretch; gap: 8px; }
 .meet-row .taskcard { flex: 1; }
@@ -201,9 +222,10 @@ table.rank td.actions { display: flex; gap: 6px; justify-content: flex-end; }
 }
 table.rank tr.editing td { padding: 6px 6px; }
 table.rank tr.editing input {
-  width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--accent);
+  width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
   border-radius: 6px; padding: 6px 8px; font-size: 13px; font-family: inherit;
 }
+table.rank tr.editing input:focus { outline: none; border-color: var(--accent); }
 table.rank tr.editing td.bib input { width: 70px; }
 table.rank tr.absent { opacity: .5; }
 table.rank tr.absent:hover { opacity: .75; }
@@ -245,6 +267,8 @@ body.landing { display: block; overflow-y: auto; background: var(--bg); }
 .btn.primary:hover { background: var(--accent-300); }
 .btn.secondary { background: transparent; color: var(--text); border-color: var(--line); }
 .btn.secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn.btn-block { width: 100%; justify-content: center; }
+.btn:disabled { opacity: .5; cursor: progress; }
 
 /* Hero */
 .hero { position: relative; text-align: center; padding: 90px 24px 70px; overflow: hidden; }
@@ -340,6 +364,7 @@ body.landing { display: block; overflow-y: auto; background: var(--bg); }
 .auth-foot a { color: var(--accent); text-decoration: none; }
 .auth-err { background: #2a1012; border: 1px solid #5a1f23; color: var(--bad); border-radius: 9px; padding: 10px 12px; font-size: 13px; }
 
+.pilot-section { flex-direction: column; gap: 14px; }
 .role-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .role-opt {
   border: 1px solid var(--line); border-radius: 10px; padding: 12px 10px; text-align: center;
@@ -372,3 +397,20 @@ body.landing { display: block; overflow-y: auto; background: var(--bg); }
 .my-rank .pts small { color: var(--muted); font-family: var(--font-sans); font-size: 11px; }
 .my-rank.rank1 .rk, .my-rank.rank1 .pts { color: var(--gold); }
 @media (max-width: 720px) { .my-cards { grid-template-columns: 1fr; } }
+
+/* --- participant-facing mobile polish (phones view rank/scores here) --- */
+@media (max-width: 640px) {
+  .lp { padding: 0 16px; }
+  .hero { padding: 64px 18px 48px; }
+  .hero p.sub { font-size: 15px; }
+  .hero .cta .btn { flex: 1; justify-content: center; }
+  .lp-sec { padding: 40px 0; }
+  .lp-sec h2 { font-size: 23px; }
+  .lp-nav { gap: 10px; padding: 14px 16px; }
+  .page-title { font-size: 24px; }
+  .my-card { padding: 16px; }
+  .join-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .join-row .btn { width: 100%; justify-content: center; }
+  .auth-wrap { padding: 24px 16px; }
+  .auth-card { padding: 24px 20px; }
+}

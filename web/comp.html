@@ -13,7 +13,7 @@
 </head>
 <body>
   <aside id="panel">
-    <a href="/" class="brand" style="margin-bottom:2px">
+    <a href="/" class="brand">
       <svg viewBox="0 0 32 32" width="24" height="24" fill="none" aria-hidden="true">
         <path d="M16 27.33C5.33 27.33 5.33 17.33 16 17.33C24.67 17.33 24.67 9.33 16 9.33C10 9.33 10 4.67 16 4.67"
               stroke="#3D9DFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
@@ -46,7 +46,7 @@
         <label class="field"><span>Min dist (km)</span><input id="c-mindist" type="number" value="7" min="0" step="0.5" /></label>
         <label class="field"><span>LTR</span><input id="c-ltr" type="number" value="0.26" min="0" max="0.5" step="0.01" /></label>
       </div>
-      <button type="submit">리그 생성</button>
+      <button type="submit" class="btn primary btn-block">리그 생성</button>
     </form>
 
     <div id="claim-box" hidden>
@@ -99,13 +99,13 @@
       </form>
       <div class="tablewrap"><table class="rank" id="roster-table"></table></div>
 
-      <div class="roster-head" style="margin-top:26px">
+      <div class="roster-head section">
         <h3>리그 종합 순위 <small id="league-standings-note" class="muted"></small></h3>
         <select id="league-class-filter" class="class-filter" title="등급별 순위"></select>
       </div>
       <div class="tablewrap"><table class="rank" id="league-standings-table"></table></div>
 
-      <div class="roster-head" style="margin-top:26px">
+      <div class="roster-head section">
         <h3>차전</h3>
         <button type="button" id="new-meet-btn" class="ghost">+ 새 차전 추가</button>
       </div>
@@ -130,7 +130,7 @@
       </div>
       <div class="tablewrap"><table class="rank" id="meet-standings-table"></table></div>
 
-      <div class="roster-head" style="margin-top:26px">
+      <div class="roster-head section">
         <h3>타스크</h3>
         <button type="button" id="new-task-btn" class="ghost">+ 타스크 추가</button>
       </div>
@@ -139,12 +139,12 @@
         <label class="field"><span>선수 IGC (여러 개)</span><input id="t-igcs" type="file" accept=".igc,.IGC" multiple required /></label>
         <label class="field"><span>과제 (.xctsk)</span><input id="t-task" type="file" accept=".xctsk,.json" required /></label>
         <label class="field"><span>참가(등록) 인원 <small>(비우면 업로드 수)</small></span><input id="t-present" type="number" min="0" placeholder="자동" /></label>
-        <button type="submit" id="t-go">타스크 채점·추가</button>
+        <button type="submit" id="t-go" class="btn primary btn-block">타스크 채점·추가</button>
       </form>
       <div id="task-list" class="tasklist"></div>
 
       <div id="task-detail" hidden>
-        <h3 id="task-detail-title" style="margin-top:26px"></h3>
+        <h3 id="task-detail-title" class="section"></h3>
         <div class="dq" id="task-dq"></div>
         <div class="tablewrap">
           <table class="rank">
