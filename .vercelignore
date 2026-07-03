@@ -10,6 +10,12 @@ scoring/tests/
 *.zip
 *.pdf
 DECISIONS.md
-README.md
 .env
 .env.local
+
+# Force the pip + requirements.txt install path: if pyproject.toml is present,
+# Vercel's @vercel/python uses `uv sync`, which installs only [project.dependencies]
+# (geographiclib) and tries to build the repo as a wheel (needs README, packages).
+# requirements.txt already lists the full runtime dep set — use that instead.
+pyproject.toml
+uv.lock
