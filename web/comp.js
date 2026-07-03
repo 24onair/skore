@@ -269,8 +269,10 @@ $("p-alias-pick").addEventListener("change", (e) => {
   e.target.value = "";
 });
 
-// Bib autofill: type a bib → prefill name/glider/class from signed-up accounts and
-// my own past rosters, so the organizer only needs to add aliases.
+// Bib autofill: type a bib → prefill name/glider/class from three sources —
+// (1) this league's already-scored tracks (incl. 미등록 pilots, instant/client-side),
+// (2) signed-up participant accounts, (3) my own past rosters — so the organizer only
+// needs to add aliases.
 let bibSeq = 0, bibTimer = null;
 function setPilotHint(text) {
   const h = $("pilot-hint");
@@ -281,6 +283,16 @@ $("p-bib").addEventListener("input", () => {
   const bib = $("p-bib").value.trim();
   clearTimeout(bibTimer);
   if (!bib) { setPilotHint(""); return; }
+  // (1) instant: a scored pilot in THIS league's standings (bib from IGC tracks)
+  const track = ((league && league.standings) || []).find(
+    (r) => String(r.bib || "").trim() === bib);
+  if (track) {
+    $("p-name").value = track.name || "";
+    $("p-glider").value = track.glider || "";
+    if (track.glider_class) $("p-class").value = track.glider_class;
+    setPilotHint("자동완성됨 · 별칭만 추가하세요");
+  }
+  // (2,3) debounced server lookup — accounts + my past rosters, backfilling empty fields
   bibTimer = setTimeout(async () => {
     const seq = ++bibSeq;
     try {
@@ -288,11 +300,14 @@ $("p-bib").addEventListener("input", () => {
       if (!res.ok || seq !== bibSeq) return;               // stale or failed
       const { pilot } = await res.json();
       if (seq !== bibSeq) return;
-      if (!pilot) { setPilotHint("일치하는 선수 없음 — 직접 입력"); return; }
-      $("p-name").value = pilot.name || "";
-      $("p-glider").value = pilot.glider || "";
-      $("p-class").value = pilot.glider_class || "";
-      setPilotHint("자동완성됨 · 별칭만 추가하세요");
+      if (pilot) {
+        if (!$("p-name").value.trim()) $("p-name").value = pilot.name || "";
+        if (!$("p-glider").value.trim()) $("p-glider").value = pilot.glider || "";
+        if (!$("p-class").value) $("p-class").value = pilot.glider_class || "";
+        setPilotHint("자동완성됨 · 별칭만 추가하세요");
+      } else if (!track) {
+        setPilotHint("일치하는 선수 없음 — 직접 입력");
+      }
     } catch {}
   }, 350);
 });
