@@ -291,6 +291,49 @@ def add_pilot(
         return _row_to_pilot(cur.fetchone())
 
 
+def lookup_pilot_by_bib(owner_id: str, bib: str) -> dict | None:
+    """Best-effort pilot info for a bib, powering the add-pilot autofill. Merges the
+    two sources the organizer is entitled to see — signed-up participant accounts and
+    the rosters of leagues this organizer owns — newest first, filling each field from
+    the first candidate that has it. Contact comes only from the organizer's own
+    rosters (never from unrelated accounts). Returns None if no named match."""
+    bib = (bib or "").strip()
+    if not bib:
+        return None
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            select pilot_name as name, glider, glider_class, '' as contact, created
+              from profiles
+             where role = 'participant' and trim(bib) = %s
+            union all
+            select r.name, r.glider, r.glider_class, r.contact, r.created
+              from roster r join leagues l on l.id = r.league_id
+             where l.owner_id = %s::uuid and trim(r.bib) = %s
+            order by created desc
+            """,
+            (bib, owner_id, bib),
+        )
+        rows = cur.fetchall()
+
+    def _first(key: str) -> str:
+        for r in rows:
+            v = (r.get(key) or "").strip()
+            if v:
+                return v
+        return ""
+
+    name = _first("name")
+    if not name:
+        return None
+    return {
+        "name": name,
+        "glider": _first("glider"),
+        "glider_class": _first("glider_class"),
+        "contact": _first("contact"),
+    }
+
+
 def update_pilot(league_id: str, pid: str, fields: dict) -> dict | None:
     sets, vals = [], []
     for k in ("bib", "name", "glider", "glider_class", "contact"):

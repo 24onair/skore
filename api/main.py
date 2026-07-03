@@ -472,6 +472,14 @@ def delete_task_endpoint(
     return {"deleted": task_id}
 
 
+# --- pilot autofill (organizer types a bib → prefill name/glider/class) ---- #
+@app.get("/api/pilots/lookup")
+def lookup_pilot_endpoint(bib: str, user: dict = Depends(auth.require_organizer)) -> dict:
+    """Best-effort pilot info for a bib, from the caller's own rosters + signed-up
+    participant accounts. Backs the add-pilot form's bib autofill."""
+    return {"pilot": store.lookup_pilot_by_bib(user["uid"], bib)}
+
+
 # --- roster (league-level: bib / name / glider / aliases) ------------------ #
 @app.post("/api/leagues/{league_id}/roster")
 async def add_pilot_endpoint(

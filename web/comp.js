@@ -263,10 +263,38 @@ async function deletePilot(pid) {
 $("roster-add-btn").addEventListener("click", () => {
   const f = $("pilot-form"); f.hidden = !f.hidden; if (!f.hidden) $("p-name").focus();
 });
-$("pilot-cancel").addEventListener("click", () => { $("pilot-form").hidden = true; $("pilot-form").reset(); });
+$("pilot-cancel").addEventListener("click", () => { $("pilot-form").hidden = true; $("pilot-form").reset(); setPilotHint(""); });
 $("p-alias-pick").addEventListener("change", (e) => {
   appendAlias($("p-aliases"), e.target.value);
   e.target.value = "";
+});
+
+// Bib autofill: type a bib → prefill name/glider/class from signed-up accounts and
+// my own past rosters, so the organizer only needs to add aliases.
+let bibSeq = 0, bibTimer = null;
+function setPilotHint(text) {
+  const h = $("pilot-hint");
+  if (!h) return;
+  h.textContent = text || ""; h.hidden = !text;
+}
+$("p-bib").addEventListener("input", () => {
+  const bib = $("p-bib").value.trim();
+  clearTimeout(bibTimer);
+  if (!bib) { setPilotHint(""); return; }
+  bibTimer = setTimeout(async () => {
+    const seq = ++bibSeq;
+    try {
+      const res = await SKORE.api(`/api/pilots/lookup?bib=${encodeURIComponent(bib)}`);
+      if (!res.ok || seq !== bibSeq) return;               // stale or failed
+      const { pilot } = await res.json();
+      if (seq !== bibSeq) return;
+      if (!pilot) { setPilotHint("일치하는 선수 없음 — 직접 입력"); return; }
+      $("p-name").value = pilot.name || "";
+      $("p-glider").value = pilot.glider || "";
+      $("p-class").value = pilot.glider_class || "";
+      setPilotHint("자동완성됨 · 별칭만 추가하세요");
+    } catch {}
+  }, 350);
 });
 
 $("pilot-form").addEventListener("submit", async (e) => {
@@ -279,7 +307,7 @@ $("pilot-form").addEventListener("submit", async (e) => {
   fd.append("glider_class", $("p-class").value);
   fd.append("aliases", $("p-aliases").value);
   const res = await SKORE.api(`/api/leagues/${league.id}/roster`, { method: "POST", body: fd });
-  if (res.ok) { $("pilot-form").reset(); $("pilot-form").hidden = true; await selectLeague(league.id); }
+  if (res.ok) { $("pilot-form").reset(); $("pilot-form").hidden = true; setPilotHint(""); await selectLeague(league.id); }
 });
 
 $("roster-import").addEventListener("change", async (e) => {

@@ -139,6 +139,28 @@ function wire(table) {
   on("save", (pid, tr) => savePilot(pid, tr));
   table.querySelectorAll("tr.editing input").forEach((inp) =>
     inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") savePilot(ev.target.closest("tr").dataset.pid, ev.target.closest("tr")); }));
+  // Bib autofill on edit rows — fill only empty cells (non-destructive).
+  table.querySelectorAll("tr.editing .e-bib").forEach((inp) => {
+    let timer = null, seq = 0;
+    inp.addEventListener("input", () => {
+      const tr = inp.closest("tr");
+      const bib = inp.value.trim();
+      clearTimeout(timer);
+      if (!bib) return;
+      timer = setTimeout(async () => {
+        const s = ++seq;
+        try {
+          const res = await SKORE.api(`/api/pilots/lookup?bib=${encodeURIComponent(bib)}`);
+          if (!res.ok || s !== seq) return;
+          const { pilot } = await res.json();
+          if (!pilot || s !== seq) return;
+          const fill = (sel, val) => { const el = tr.querySelector(sel); if (el && !el.value.trim()) el.value = val || ""; };
+          fill(".e-name", pilot.name); fill(".e-glider", pilot.glider);
+          fill(".e-class", pilot.glider_class); fill(".e-contact", pilot.contact);
+        } catch {}
+      }, 350);
+    });
+  });
 }
 
 async function setStatus(pid, action) {
