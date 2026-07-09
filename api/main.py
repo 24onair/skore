@@ -7,6 +7,8 @@ for map rendering. The static single-page UI is served at /.
 
 from __future__ import annotations
 
+import re
+
 from pathlib import Path
 
 from pathlib import PurePath
@@ -319,6 +321,26 @@ def list_leagues_endpoint(
     return {"leagues": leagues}
 
 
+def _mask_name(name: str) -> str:
+    """Privacy mask for the public landing preview: keep only the surname, mask the
+    rest. Korean names keep the first syllable (민병도 → 민○○); latin names keep the
+    first token and mask the given name(s) (Kim Taesu → Kim ○). A code-prefixed name
+    like ``FN37(Min Byungdo)`` is reduced to its parenthesized real name first."""
+    name = (name or "").strip()
+    if not name:
+        return ""
+    inner = re.search(r"\(([^)]+)\)", name)
+    if inner:
+        name = inner.group(1).strip()
+    if re.search(r"[가-힣]", name):  # Korean
+        return name[0] + "○" * (len(name) - 1) if len(name) > 1 else name
+    parts = name.split()
+    if len(parts) == 1:
+        p = parts[0]
+        return p[0] + "○" * (len(p) - 1) if len(p) > 1 else p
+    return parts[0] + "".join(" ○" for _ in parts[1:])
+
+
 @app.get("/api/public/landing")
 def public_landing_endpoint(limit: int = 3) -> dict:
     """Public, unauthenticated preview for the landing page: the top-N standings
@@ -336,7 +358,7 @@ def public_landing_endpoint(limit: int = 3) -> dict:
         {
             "rank": s["rank"],
             "bib": s.get("bib") or "",
-            "name": s["name"],
+            "name": _mask_name(s["name"]),
             "glider": s.get("glider") or s.get("glider_brand") or "",
             "total": s["total"],
             "per_meet": {mid: pts for mid, pts in (s.get("per_meet") or {}).items()},
