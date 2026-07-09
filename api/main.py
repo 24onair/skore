@@ -319,6 +319,37 @@ def list_leagues_endpoint(
     return {"leagues": leagues}
 
 
+@app.get("/api/public/landing")
+def public_landing_endpoint(limit: int = 3) -> dict:
+    """Public, unauthenticated preview for the landing page: the top-N standings
+    of the most recently scored league, with its meets as columns. Returns
+    ``{"league": null}`` when no league has been scored yet."""
+    league_id = store.latest_active_league_id()
+    if league_id is None:
+        return {"league": None}
+    league = store.get_league(league_id)
+    if league is None:
+        return {"league": None}
+    meets = [{"id": m["id"], "name": m["name"]} for m in league.get("meets", [])]
+    standings = store.league_standings(league)[: max(1, limit)]
+    rows = [
+        {
+            "rank": s["rank"],
+            "bib": s.get("bib") or "",
+            "name": s["name"],
+            "glider": s.get("glider") or s.get("glider_brand") or "",
+            "total": s["total"],
+            "per_meet": {mid: pts for mid, pts in (s.get("per_meet") or {}).items()},
+        }
+        for s in standings
+    ]
+    return {
+        "league": {"id": league["id"], "name": league["name"]},
+        "meets": meets,
+        "standings": rows,
+    }
+
+
 @app.get("/api/leagues/{league_id}")
 def get_league_endpoint(
     league_id: str,

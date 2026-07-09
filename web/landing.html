@@ -55,18 +55,18 @@
     </div>
   </div>
 
-  <!-- ranking preview -->
+  <!-- ranking preview (live: most recently scored league) -->
   <section class="lp">
-    <div class="preview-wrap">
+    <div class="preview-wrap" id="preview-wrap">
       <div class="ph"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
-        <span class="muted" style="font-size:12px;margin-left:6px">대회 종합 순위 · 5차전 2라운드</span></div>
+        <span class="muted" id="preview-caption" style="font-size:12px;margin-left:6px">대회 종합 순위</span></div>
       <div class="pb tablewrap">
-        <table class="rank">
-          <thead><tr><th>순위</th><th class="bib">배번</th><th class="l">선수 / 기체</th><th>1차전</th><th>2차전</th><th>종합</th></tr></thead>
-          <tbody>
-            <tr class="rank1"><td class="rk">1</td><td class="bib">001</td><td class="l">송대진 <span class="muted">· 머루</span></td><td class="num">873.5</td><td class="num">—</td><td class="tot">873.5</td></tr>
-            <tr><td class="rk">2</td><td class="bib">007</td><td class="l">박진택 <span class="muted">· 라이트</span></td><td class="num">356.5</td><td class="num">—</td><td class="tot">356.5</td></tr>
-            <tr><td class="rk">3</td><td class="bib">214</td><td class="l">손성훈 <span class="muted">· GTO3</span></td><td class="num">228.2</td><td class="num">—</td><td class="tot">228.2</td></tr>
+        <table class="rank" id="preview-table">
+          <thead><tr><th>순위</th><th class="bib">배번</th><th class="l">선수 / 기체</th><th>종합</th></tr></thead>
+          <tbody id="preview-rows">
+            <tr class="rank1"><td class="rk">1</td><td class="bib">001</td><td class="l">송대진 <span class="muted">· 머루</span></td><td class="tot">873.5</td></tr>
+            <tr><td class="rk">2</td><td class="bib">007</td><td class="l">박진택 <span class="muted">· 라이트</span></td><td class="tot">356.5</td></tr>
+            <tr><td class="rk">3</td><td class="bib">214</td><td class="l">손성훈 <span class="muted">· GTO3</span></td><td class="tot">228.2</td></tr>
           </tbody>
         </table>
       </div>
@@ -160,6 +160,49 @@
       } else {
         p.href = "/dashboard.html"; p.textContent = "내 순위 확인";
         s.href = "/index.html"; s.textContent = "단일 분석"; s.hidden = false;
+      }
+    })();
+
+    // Live ranking preview — most recently scored league.
+    (async () => {
+      const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+      const fmt = (n) => (n == null ? "—" : Number(n).toFixed(1));
+      try {
+        const r = await fetch("/api/public/landing?limit=3");
+        if (!r.ok) return;
+        const d = await r.json();
+        if (!d.league || !d.standings || !d.standings.length) return;
+
+        const meets = d.meets || [];
+        const caption = document.getElementById("preview-caption");
+        const lastMeet = meets.length ? meets[meets.length - 1].name : "";
+        caption.textContent = d.league.name + (lastMeet ? " · " + lastMeet : "");
+
+        const thead = document.querySelector("#preview-table thead tr");
+        thead.innerHTML =
+          '<th>순위</th><th class="bib">배번</th><th class="l">선수 / 기체</th>' +
+          meets.map((m) => `<th>${esc(m.name)}</th>`).join("") +
+          "<th>종합</th>";
+
+        const tbody = document.getElementById("preview-rows");
+        tbody.innerHTML = d.standings
+          .map((row) => {
+            const glider = row.glider ? ` <span class="muted">· ${esc(row.glider)}</span>` : "";
+            const cells = meets
+              .map((m) => `<td class="num">${fmt(row.per_meet ? row.per_meet[m.id] : null)}</td>`)
+              .join("");
+            return (
+              `<tr${row.rank === 1 ? ' class="rank1"' : ""}>` +
+              `<td class="rk">${esc(row.rank)}</td>` +
+              `<td class="bib">${esc(row.bib)}</td>` +
+              `<td class="l">${esc(row.name)}${glider}</td>` +
+              cells +
+              `<td class="tot">${fmt(row.total)}</td></tr>`
+            );
+          })
+          .join("");
+      } catch (e) {
+        /* keep the static placeholder on any error */
       }
     })();
   </script>

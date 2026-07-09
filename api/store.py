@@ -72,6 +72,23 @@ def list_leagues() -> list[dict]:
     ]
 
 
+def latest_active_league_id() -> str | None:
+    """League id of the most recently scored task's league — powers the public
+    landing preview. Falls back to the newest league that has any task; returns
+    None if no task exists anywhere."""
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            select m.league_id
+            from tasks t join meets m on m.id = t.meet_id
+            order by t.created desc
+            limit 1
+            """
+        )
+        row = cur.fetchone()
+    return str(row["league_id"]) if row else None
+
+
 def get_league(league_id: str) -> dict | None:
     """Assemble the full league dict (params + roster + meets + tasks) that the pure
     standings functions expect. Returns None if the league doesn't exist."""
